@@ -4,7 +4,6 @@ import com.xtremeiptv.data.database.AppDatabase
 import com.xtremeiptv.data.database.entity.Favorite
 import com.xtremeiptv.data.database.entity.ResumePosition
 import com.xtremeiptv.data.network.model.Channel
-import com.xtremeiptv.data.network.model.Episode
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import com.xtremeiptv.data.network.protocol.M3uParser
@@ -12,9 +11,9 @@ import com.xtremeiptv.data.network.protocol.MacClient
 import com.xtremeiptv.data.network.protocol.StalkerClient
 import com.xtremeiptv.data.network.protocol.XtreamClient
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import javax.in.Inject
-import javax.in.Singleton
+import kotlinx.coroutines.flow.first
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
 class ContentRepository @Inject constructor(
@@ -27,7 +26,6 @@ class ContentRepository @Inject constructor(
     private val favoriteDao = database.favoriteDao()
     private val resumeDao = database.resumePositionDao()
     
-    // Favorites
     fun getFavorites(profileId: String): Flow<List<Favorite>> = favoriteDao.getFavorites(profileId)
     
     suspend fun addFavorite(profileId: String, contentId: String, contentType: String, title: String) {
@@ -43,7 +41,6 @@ class ContentRepository @Inject constructor(
         return favoriteDao.isFavorite(profileId, contentId)
     }
     
-    // Resume positions
     fun getResumePosition(profileId: String, contentId: String): Flow<ResumePosition?> {
         return resumeDao.getResumePosition(profileId, contentId)
     }
@@ -58,7 +55,6 @@ class ContentRepository @Inject constructor(
         resumeDao.deleteResumePosition(position)
     }
     
-    // Search
     suspend fun searchChannels(channels: List<Channel>, query: String): List<Channel> {
         return channels.filter { it.name.contains(query, ignoreCase = true) }
     }
