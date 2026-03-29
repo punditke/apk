@@ -4,19 +4,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.xtremeiptv.utils.XtremeIPTVTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,7 +64,6 @@ class PlayerActivity : ComponentActivity() {
     
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration?) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        // Handled by ViewModel
     }
     
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -89,10 +85,6 @@ fun PlayerScreen(
     val streamUrl by viewModel.streamUrl.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val currentPosition by viewModel.currentPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
-    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     
     LaunchedEffect(Unit) {
         viewModel.loadContent(contentId, contentType)
@@ -101,10 +93,10 @@ fun PlayerScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             isLoading -> {
-                // Loading indicator would be shown
+                // Loading handled by ViewModel
             }
             error != null -> {
-                // Error display
+                // Error handled by ViewModel
             }
             streamUrl != null -> {
                 AndroidView(
@@ -112,7 +104,6 @@ fun PlayerScreen(
                         PlayerView(context).apply {
                             player = viewModel.getPlayer()
                             useController = true
-                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                         }
                     },
                     modifier = Modifier.fillMaxSize()
