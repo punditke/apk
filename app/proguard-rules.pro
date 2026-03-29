@@ -1,0 +1,5 @@
+-keep class com.xtremeiptv.data.** { *; }
+-keepclassmembers class com.xtremeiptv.data.** { *; }
+-keepnames class * implements android.os.Parcelable
+-keepclassmembers class * extends androidx.room.RoomDatabase
+-keep @com.google.dagger.hilt.android.lifecycle.HiltViewModel public class *
