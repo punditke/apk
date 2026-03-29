@@ -1,6 +1,7 @@
 package com.xtremeiptv.data.repository
 
 import android.net.Uri
+import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 class PlayerRepository @Inject constructor() {
     
     private var exoPlayer: ExoPlayer? = null
+    private var appContext: Context? = null
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -36,9 +38,10 @@ class PlayerRepository @Inject constructor() {
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
     
-    fun initializePlayer() {
+    fun initializePlayer(context: Context) {
+        appContext = context.applicationContext
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(androidx.media3.common.util.GlobalScope.context!!)
+            exoPlayer = ExoPlayer.Builder(context)
                 .build()
                 .apply {
                     addListener(playerListener)
@@ -47,7 +50,11 @@ class PlayerRepository @Inject constructor() {
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
-        initializePlayer()
+        val context = appContext ?: return
+        
+        if (exoPlayer == null) {
+            initializePlayer(context)
+        }
         
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
@@ -85,14 +92,6 @@ class PlayerRepository @Inject constructor() {
     fun release() {
         exoPlayer?.release()
         exoPlayer = null
-    }
-    
-    fun enableBackgroundPlayback(enable: Boolean) {
-        // Handled by service implementation
-    }
-    
-    fun enablePipMode() {
-        // Handled by Activity
     }
     
     private val playerListener = object : Player.Listener {
