@@ -60,6 +60,22 @@ class StalkerClient @Inject constructor() {
         val cmd: String
     )
     
+    @Serializable
+    private data class SeriesListResponse(
+        val data: List<StalkerSeries>? = null
+    )
+    
+    @Serializable
+    private data class StalkerSeries(
+        val id: String,
+        val name: String,
+        val poster: String? = null,
+        val description: String? = null,
+        val rating: String? = null,
+        val year: String? = null,
+        val cmd: String
+    )
+    
     suspend fun authenticate(creds: StalkerCredentials): String? = withContext(Dispatchers.IO) {
         try {
             val url = "${creds.url}/stalker_portal/api/v1/auth?login=${creds.username}&password=${creds.password}&mac=${creds.mac}"
@@ -116,8 +132,17 @@ class StalkerClient @Inject constructor() {
         try {
             val url = "$baseUrl/stalker_portal/api/v1/series?token=$token"
             val response = URL(url).readText()
-            // Parse series - simplified for now
-            emptyList()
+            val wrapper = Json.decodeFromString<SeriesListResponse>(response)
+            wrapper.data?.map {
+                Series(
+                    id = it.id,
+                    name = it.name,
+                    coverUrl = it.poster,
+                    plot = it.description,
+                    rating = it.rating?.toFloatOrNull(),
+                    releaseDate = it.year
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
