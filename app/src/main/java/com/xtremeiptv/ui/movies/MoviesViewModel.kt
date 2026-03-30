@@ -32,7 +32,7 @@ class MoviesViewModel @Inject constructor(
         loadMovies()
     }
     
-    private fun loadMovies() {
+    fun loadMovies() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -51,7 +51,9 @@ class MoviesViewModel @Inject constructor(
                         xtreamClient.getVodMovies(creds)
                     }
                     "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: "")
+                        val creds = StalkerClient.StalkerCredentials(
+                            profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
+                        )
                         stalkerClient.getVodMovies(creds)
                     }
                     "mac" -> {
