@@ -14,26 +14,70 @@ import javax.inject.Singleton
 @Singleton
 class MacClient @Inject constructor() {
     
-    data class MacCredentials(val url: String, val mac: String)
-    data class UserInfo(val createdDate: String?, val expiryDate: String?, val maxConnections: Int?, val tariffPlan: String?)
+    data class MacCredentials(
+        val url: String, 
+        val mac: String
+    )
+    
+    data class UserInfo(
+        val createdDate: String?, 
+        val expiryDate: String?, 
+        val maxConnections: Int?, 
+        val tariffPlan: String?
+    )
     
     @Serializable
-    private data class AuthResponse(val status: String? = null, val token: String? = null)
+    private data class AuthResponse(
+        val status: String? = null, 
+        val token: String? = null
+    )
     
     @Serializable
-    private data class ChannelListResponse(val data: List<MacChannel>? = null)
-    @Serializable
-    private data class MacChannel(val id: String, val name: String, val logo: String? = null, val stream_url: String, val category: String? = null)
+    private data class ChannelListResponse(
+        val data: List<MacChannel>? = null
+    )
     
     @Serializable
-    private data class VodListResponse(val data: List<MacVod>? = null)
-    @Serializable
-    private data class MacVod(val id: String, val name: String, val poster: String? = null, val description: String? = null, val duration: String? = null, val rating: String? = null, val year: String? = null, val stream_url: String)
+    private data class MacChannel(
+        val id: String, 
+        val name: String, 
+        val logo: String? = null, 
+        val stream_url: String, 
+        val category: String? = null
+    )
     
     @Serializable
-    private data class SeriesListResponse(val data: List<MacSeries>? = null)
+    private data class VodListResponse(
+        val data: List<MacVod>? = null
+    )
+    
     @Serializable
-    private data class MacSeries(val id: String, val name: String, val poster: String? = null, val description: String? = null, val rating: String? = null, val year: String? = null, val stream_url: String)
+    private data class MacVod(
+        val id: String, 
+        val name: String, 
+        val poster: String? = null, 
+        val description: String? = null, 
+        val duration: String? = null, 
+        val rating: String? = null, 
+        val year: String? = null, 
+        val stream_url: String
+    )
+    
+    @Serializable
+    private data class SeriesListResponse(
+        val data: List<MacSeries>? = null
+    )
+    
+    @Serializable
+    private data class MacSeries(
+        val id: String, 
+        val name: String, 
+        val poster: String? = null, 
+        val description: String? = null, 
+        val rating: String? = null, 
+        val year: String? = null, 
+        val stream_url: String
+    )
     
     private suspend fun getToken(creds: MacCredentials): String? = withContext(Dispatchers.IO) {
         try {
@@ -41,7 +85,9 @@ class MacClient @Inject constructor() {
             val response = URL(url).readText()
             val auth = Json.decodeFromString<AuthResponse>(response)
             auth.token
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getAccountInfo(creds: MacCredentials): UserInfo? = withContext(Dispatchers.IO) {
@@ -49,9 +95,12 @@ class MacClient @Inject constructor() {
             val token = getToken(creds) ?: return@withContext null
             val url = "${creds.url}/c/get_user?token=$token"
             val response = URL(url).readText()
-            // Parse actual response from server - returns null for now until API response format is known
+            // Parse actual response from server
+            // For now return null until API format is known
             UserInfo(null, null, null, null)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getLiveChannels(creds: MacCredentials): List<Channel> = withContext(Dispatchers.IO) {
@@ -69,7 +118,9 @@ class MacClient @Inject constructor() {
                     groupTitle = it.category
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
     
     suspend fun getVodMovies(creds: MacCredentials): List<VodItem> = withContext(Dispatchers.IO) {
@@ -90,7 +141,9 @@ class MacClient @Inject constructor() {
                     releaseDate = it.year
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
     
     suspend fun getSeries(creds: MacCredentials): List<Series> = withContext(Dispatchers.IO) {
@@ -109,6 +162,8 @@ class MacClient @Inject constructor() {
                     releaseDate = it.year
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
 }
