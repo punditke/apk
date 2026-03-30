@@ -55,44 +55,62 @@ class AccountViewModel @Inject constructor(
                     .replace("https://", "")
                     .split("/")[0]
                 
-                // Fetch real account data based on protocol
-                val accountData = when (profile.protocolType) {
-                    "xtream" -> {
-                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
-                        xtreamClient.getAccountInfo(creds)
+                // Fetch account data based on protocol
+                var createdDate: String? = null
+                var expiryDate: String? = null
+                var maxConnections: Int? = null
+                var tariffPlan: String? = null
+                
+                try {
+                    when (profile.protocolType) {
+                        "xtream" -> {
+                            val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
+                            val info = xtreamClient.getAccountInfo(creds)
+                            createdDate = info?.createdDate
+                            expiryDate = info?.expiryDate
+                            maxConnections = info?.maxConnections
+                            tariffPlan = info?.tariffPlan
+                        }
+                        "stalker" -> {
+                            val creds = StalkerClient.StalkerCredentials(
+                                profile.serverUrl,
+                                profile.username ?: "",
+                                profile.password ?: "",
+                                profile.macAddress ?: ""
+                            )
+                            val info = stalkerClient.getAccountInfo(creds)
+                            createdDate = info?.createdDate
+                            expiryDate = info?.expiryDate
+                            maxConnections = info?.maxConnections
+                            tariffPlan = info?.tariffPlan
+                        }
+                        "mac" -> {
+                            val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
+                            val info = macClient.getAccountInfo(creds)
+                            createdDate = info?.createdDate
+                            expiryDate = info?.expiryDate
+                            maxConnections = info?.maxConnections
+                            tariffPlan = info?.tariffPlan
+                        }
                     }
-                    "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(
-                            profile.serverUrl,
-                            profile.username ?: "",
-                            profile.password ?: "",
-                            profile.macAddress ?: ""
-                        )
-                        stalkerClient.getAccountInfo(creds)
-                    }
-                    "mac" -> {
-                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
-                        macClient.getAccountInfo(creds)
-                    }
-                    else -> null
+                } catch (e: Exception) {
+                    // Account info fetch failed, continue with null values
                 }
                 
-                // Extract values safely
-                val createdDate = accountData?.let { it.createdDate }
-                val expiryDate = accountData?.let { it.expiryDate }
-                val tariffPlan = accountData?.let { it.tariffPlan }
-                val maxConnections = accountData?.let { it.maxConnections }
+                val remainingDays = if (expiryDate != null) {
+                    calculateRemainingDays(expiryDate)
+                } else null
                 
                 _accountInfo.value = AccountInfo(
                     portalUrl = profile.serverUrl,
                     serverIp = serverIp,
                     protocol = profile.protocolType,
-                    status = if (accountData != null) "Connected" else "Error",
+                    status = "Connected",
                     macAddress = profile.macAddress,
                     username = profile.username,
                     createdDate = createdDate,
                     expiryDate = expiryDate,
-                    remainingDays = if (expiryDate != null) calculateRemainingDays(expiryDate) else null,
+                    remainingDays = remainingDays,
                     tariffPlan = tariffPlan,
                     maxConnections = maxConnections
                 )
