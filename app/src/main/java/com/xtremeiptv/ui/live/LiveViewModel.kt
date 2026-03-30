@@ -32,7 +32,7 @@ class LiveViewModel @Inject constructor(
         loadChannels()
     }
     
-    private fun loadChannels() {
+    fun loadChannels() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -51,7 +51,9 @@ class LiveViewModel @Inject constructor(
                         xtreamClient.getLiveChannels(creds)
                     }
                     "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: "")
+                        val creds = StalkerClient.StalkerCredentials(
+                            profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
+                        )
                         stalkerClient.getLiveChannels(creds)
                     }
                     "mac" -> {
