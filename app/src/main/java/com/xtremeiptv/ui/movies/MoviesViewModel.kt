@@ -3,6 +3,7 @@ package com.xtremeiptv.ui.movies
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.network.model.VodItem
+import com.xtremeiptv.data.network.protocol.XtreamClient
 import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,7 +14,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MoviesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val contentRepository: ContentRepository
+    private val contentRepository: ContentRepository,
+    private val xtreamClient: XtreamClient
 ) : ViewModel() {
     
     private val _movies = MutableStateFlow<List<VodItem>>(emptyList())
@@ -42,12 +44,27 @@ class MoviesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                // Mock data
-                _movies.value = listOf(
-                    VodItem(id = "1", title = "Inception", streamUrl = "", posterUrl = null),
-                    VodItem(id = "2", title = "The Dark Knight", streamUrl = "", posterUrl = null),
-                    VodItem(id = "3", title = "Interstellar", streamUrl = "", posterUrl = null)
-                )
+                val result = when (profile.protocolType) {
+                    "xtream" -> {
+                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username!!, profile.password!!)
+                        xtreamClient.getVodMovies(creds)
+                    }
+                    "m3u" -> {
+                        // Load from M3U - implement
+                        emptyList()
+                    }
+                    "stalker" -> {
+                        // Stalker implementation
+                        emptyList()
+                    }
+                    "mac" -> {
+                        // MAC implementation
+                        emptyList()
+                    }
+                    else -> emptyList()
+                }
+                
+                _movies.value = result
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
