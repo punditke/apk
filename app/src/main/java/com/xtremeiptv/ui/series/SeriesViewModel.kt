@@ -32,7 +32,7 @@ class SeriesViewModel @Inject constructor(
         loadSeries()
     }
     
-    private fun loadSeries() {
+    fun loadSeries() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -51,7 +51,9 @@ class SeriesViewModel @Inject constructor(
                         xtreamClient.getSeries(creds)
                     }
                     "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: "")
+                        val creds = StalkerClient.StalkerCredentials(
+                            profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
+                        )
                         stalkerClient.getSeries(creds)
                     }
                     "mac" -> {
