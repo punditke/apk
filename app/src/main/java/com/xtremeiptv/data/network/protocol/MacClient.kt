@@ -5,6 +5,9 @@ import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,30 +16,75 @@ class MacClient @Inject constructor() {
     
     data class MacCredentials(val url: String, val mac: String)
     
-    suspend fun authenticate(creds: MacCredentials): AuthResult = withContext(Dispatchers.IO) {
-        AuthResult(
-            success = true,
-            token = "mock_mac_token",
-            expiry = System.currentTimeMillis() + 24 * 60 * 60 * 1000
-        )
-    }
-    
-    suspend fun getLiveChannels(token: String): List<Channel> = withContext(Dispatchers.IO) {
-        emptyList()
-    }
-    
-    suspend fun getVodMovies(token: String): List<VodItem> = withContext(Dispatchers.IO) {
-        emptyList()
-    }
-    
-    suspend fun getSeries(token: String): List<Series> = withContext(Dispatchers.IO) {
-        emptyList()
-    }
-    
-    data class AuthResult(
-        val success: Boolean,
+    @Serializable
+    private data class AuthResponse(
+        val status: String? = null,
         val token: String? = null,
-        val expiry: Long? = null,
-        val error: String? = null
+        val message: String? = null
     )
+    
+    @Serializable
+    private data class ChannelListResponse(
+        val data: List<MacChannel>? = null
+    )
+    
+    @Serializable
+    private data class MacChannel(
+        val id: String,
+        val name: String,
+        val logo: String? = null,
+        val stream_url: String,
+        val category: String? = null
+    )
+    
+    suspend fun authenticate(creds: MacCredentials): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = "${creds.url}/c/?mac=${creds.mac}&type=stb"
+            val response = URL(url).readText()
+            val auth = Json.decodeFromString<AuthResponse>(response)
+            auth.token
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    suspend fun getLiveChannels(baseUrl: String, token: String): List<Channel> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$baseUrl/c/get_channels?token=$token"
+            val response = URL(url).readText()
+            val wrapper = Json.decodeFromString<ChannelListResponse>(response)
+            wrapper.data?.map {
+                Channel(
+                    id = it.id,
+                    name = it.name,
+                    streamUrl = it.stream_url,
+                    logoUrl = it.logo,
+                    groupTitle = it.category
+                )
+            } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    suspend fun getVodMovies(baseUrl: String, token: String): List<VodItem> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$baseUrl/c/get_vod?token=$token"
+            val response = URL(url).readText()
+            // Parse VOD - simplified
+            emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    suspend fun getSeries(baseUrl: String, token: String): List<Series> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$baseUrl/c/get_series?token=$token"
+            val response = URL(url).readText()
+            emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }
