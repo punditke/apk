@@ -47,8 +47,16 @@ class MoviesViewModel @Inject constructor(
                 
                 val result = when (profile.protocolType) {
                     "xtream" -> {
-                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username!!, profile.password!!)
+                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
                         xtreamClient.getVodMovies(creds)
+                    }
+                    "stalker" -> {
+                        val creds = StalkerClient.StalkerCredentials(profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: "")
+                        stalkerClient.getVodMovies(creds)
+                    }
+                    "mac" -> {
+                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
+                        macClient.getVodMovies(creds)
                     }
                     "m3u" -> {
                         val m3uResult = if (profile.serverUrl.startsWith("http")) {
@@ -58,35 +66,13 @@ class MoviesViewModel @Inject constructor(
                         }
                         m3uResult.movies
                     }
-                    "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(
-                            profile.serverUrl,
-                            profile.username!!,
-                            profile.password!!,
-                            profile.macAddress!!
-                        )
-                        val token = stalkerClient.authenticate(creds)
-                        if (token != null) {
-                            stalkerClient.getVodMovies(profile.serverUrl, token)
-                        } else {
-                            _error.value = "Stalker auth failed"
-                            emptyList()
-                        }
-                    }
-                    "mac" -> {
-                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress!!)
-                        val token = macClient.authenticate(creds)
-                        if (token != null) {
-                            macClient.getVodMovies(profile.serverUrl, token)
-                        } else {
-                            _error.value = "MAC auth failed"
-                            emptyList()
-                        }
-                    }
                     else -> emptyList()
                 }
                 
                 _movies.value = result
+                if (result.isEmpty() && _error.value == null) {
+                    _error.value = "No movies found"
+                }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
