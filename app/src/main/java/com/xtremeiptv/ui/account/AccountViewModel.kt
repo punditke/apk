@@ -55,7 +55,6 @@ class AccountViewModel @Inject constructor(
                     .replace("https://", "")
                     .split("/")[0]
                 
-                // Fetch account data based on protocol
                 var createdDate: String? = null
                 var expiryDate: String? = null
                 var maxConnections: Int? = null
@@ -73,10 +72,7 @@ class AccountViewModel @Inject constructor(
                         }
                         "stalker" -> {
                             val creds = StalkerClient.StalkerCredentials(
-                                profile.serverUrl,
-                                profile.username ?: "",
-                                profile.password ?: "",
-                                profile.macAddress ?: ""
+                                profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
                             )
                             val info = stalkerClient.getAccountInfo(creds)
                             createdDate = info?.createdDate
@@ -93,13 +89,9 @@ class AccountViewModel @Inject constructor(
                             tariffPlan = info?.tariffPlan
                         }
                     }
-                } catch (e: Exception) {
-                    // Account info fetch failed, continue with null values
-                }
+                } catch (e: Exception) { }
                 
-                val remainingDays = if (expiryDate != null) {
-                    calculateRemainingDays(expiryDate)
-                } else null
+                val remainingDays = if (expiryDate != null) calculateRemainingDays(expiryDate) else null
                 
                 _accountInfo.value = AccountInfo(
                     portalUrl = profile.serverUrl,
@@ -126,14 +118,9 @@ class AccountViewModel @Inject constructor(
             val expiry = format.parse(expiryDateStr)
             val now = Date()
             if (expiry != null && expiry.after(now)) {
-                val diff = expiry.time - now.time
-                val days = diff / (1000 * 60 * 60 * 24)
+                val days = (expiry.time - now.time) / (1000 * 60 * 60 * 24)
                 "$days days"
-            } else {
-                "Expired"
-            }
-        } catch (e: Exception) {
-            null
-        }
+            } else "Expired"
+        } catch (e: Exception) { null }
     }
 }
