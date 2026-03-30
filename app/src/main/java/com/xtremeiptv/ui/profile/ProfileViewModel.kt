@@ -64,17 +64,15 @@ class ProfileViewModel @Inject constructor(
                 macAddress = macAddress
             )
             
-            val isValid = profileRepository.validateProfile(profile)
-            
-            if (isValid) {
+            try {
                 if (id == null) {
                     profileRepository.addProfile(profile)
                 } else {
                     profileRepository.updateProfile(profile)
                 }
                 onResult(true)
-            } else {
-                _error.value = "Invalid credentials or URL"
+            } catch (e: Exception) {
+                _error.value = e.message
                 onResult(false)
             }
             
