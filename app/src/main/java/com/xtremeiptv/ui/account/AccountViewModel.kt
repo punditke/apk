@@ -2,6 +2,7 @@ package com.xtremeiptv.ui.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xtremeiptv.data.network.protocol.*
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -12,16 +13,24 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AccountViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val xtreamClient: XtreamClient,
+    private val stalkerClient: StalkerClient,
+    private val macClient: MacClient
 ) : ViewModel() {
     
     data class AccountInfo(
-        val serverUrl: String,
-        val username: String?,
-        val macAddress: String?,
+        val portalUrl: String,
+        val serverIp: String,
         val protocol: String,
         val status: String,
-        val expiry: String?
+        val macAddress: String? = null,
+        val username: String? = null,
+        val createdDate: String? = null,
+        val expiryDate: String? = null,
+        val remainingDays: String? = null,
+        val tariffPlan: String? = null,
+        val maxConnections: Int? = null
     )
     
     private val _accountInfo = MutableStateFlow<AccountInfo?>(null)
@@ -41,17 +50,66 @@ class AccountViewModel @Inject constructor(
             val profile = profileRepository.getActiveProfile().firstOrNull()
             
             if (profile != null) {
+                val serverIp = profile.serverUrl
+                    .replace("http://", "")
+                    .replace("https://", "")
+                    .split("/")[0]
+                
+                // Fetch real account data based on protocol
+                val accountData = when (profile.protocolType) {
+                    "xtream" -> {
+                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
+                        xtreamClient.getAccountInfo(creds)
+                    }
+                    "stalker" -> {
+                        val creds = StalkerClient.StalkerCredentials(
+                            profile.serverUrl,
+                            profile.username ?: "",
+                            profile.password ?: "",
+                            profile.macAddress ?: ""
+                        )
+                        stalkerClient.getAccountInfo(creds)
+                    }
+                    "mac" -> {
+                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
+                        macClient.getAccountInfo(creds)
+                    }
+                    else -> null
+                }
+                
                 _accountInfo.value = AccountInfo(
-                    serverUrl = profile.serverUrl,
-                    username = profile.username,
-                    macAddress = profile.macAddress,
+                    portalUrl = profile.serverUrl,
+                    serverIp = serverIp,
                     protocol = profile.protocolType,
-                    status = "Connected",
-                    expiry = null // Would fetch from server
+                    status = if (accountData != null) "Connected" else "Error",
+                    macAddress = profile.macAddress,
+                    username = profile.username,
+                    createdDate = accountData?.createdDate,
+                    expiryDate = accountData?.expiryDate,
+                    remainingDays = accountData?.expiryDate?.let { calculateRemainingDays(it) },
+                    tariffPlan = accountData?.tariffPlan,
+                    maxConnections = accountData?.maxConnections
                 )
             }
             
             _isLoading.value = false
+        }
+    }
+    
+    private fun calculateRemainingDays(expiryDateStr: String): String? {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val expiry = format.parse(expiryDateStr)
+            val now = Date()
+            if (expiry != null && expiry.after(now)) {
+                val diff = expiry.time - now.time
+                val days = diff / (1000 * 60 * 60 * 24)
+                "$days days"
+            } else {
+                "Expired"
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }
