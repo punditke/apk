@@ -55,7 +55,6 @@ class AccountViewModel @Inject constructor(
                     .replace("https://", "")
                     .split("/")[0]
                 
-                // Fetch real account data based on protocol
                 val accountData = when (profile.protocolType) {
                     "xtream" -> {
                         val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
