@@ -25,7 +25,7 @@ fun ProfileAddEditScreen(
     val error by viewModel.error.collectAsState()
     
     var name by remember { mutableStateOf("") }
-    var protocolType by remember { mutableStateOf("m3u") }
+    var protocolType by remember { mutableStateOf("stalker") }
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -65,6 +65,7 @@ fun ProfileAddEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Profile Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -73,16 +74,17 @@ fun ProfileAddEditScreen(
                 singleLine = true
             )
             
+            // Protocol Selection Dropdown
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
             ) {
                 OutlinedTextField(
                     value = when (protocolType) {
+                        "stalker" -> "Stalker Portal (MAC + URL)"
+                        "mac" -> "MAC Portal (MAC + URL)"
+                        "xtream" -> "XTream Codes (URL + User + Pass)"
                         "m3u" -> "M3U (URL or File)"
-                        "xtream" -> "XTream Codes"
-                        "stalker" -> "Stalker Portal"
-                        "mac" -> "MAC Portal"
                         else -> "Select Protocol"
                     },
                     onValueChange = {},
@@ -96,9 +98,16 @@ fun ProfileAddEditScreen(
                     onDismissRequest = { expanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("M3U (URL or File)") },
+                        text = { Text("Stalker Portal (MAC + URL)") },
                         onClick = {
-                            protocolType = "m3u"
+                            protocolType = "stalker"
+                            expanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("MAC Portal (MAC + URL)") },
+                        onClick = {
+                            protocolType = "mac"
                             expanded = false
                         }
                     )
@@ -110,32 +119,28 @@ fun ProfileAddEditScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Stalker Portal (URL + User + Pass + MAC)") },
+                        text = { Text("M3U (URL or File)") },
                         onClick = {
-                            protocolType = "stalker"
-                            expanded = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("MAC Portal (URL + MAC)") },
-                        onClick = {
-                            protocolType = "mac"
+                            protocolType = "m3u"
                             expanded = false
                         }
                     )
                 }
             }
             
+            // Server URL
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
                 label = { Text("Server URL") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                placeholder = { Text("http://tv.push4k.tv/stalker_portal/c/") }
             )
             
-            if (protocolType == "xtream" || protocolType == "stalker") {
+            // Conditional fields based on protocol
+            if (protocolType == "xtream") {
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -160,16 +165,37 @@ fun ProfileAddEditScreen(
                     label = { Text("MAC Address") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("00:1A:79:00:00:00") }
+                    placeholder = { Text("00:1A:79:00:07:A9") }
                 )
             }
             
+            // Optional username/password for Stalker
+            if (protocolType == "stalker") {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+            
+            // Error message
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
             
             Spacer(modifier = Modifier.weight(1f))
             
+            // Save Button
             Button(
                 onClick = {
                     viewModel.saveProfile(
@@ -187,7 +213,6 @@ fun ProfileAddEditScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = name.isNotBlank() && serverUrl.isNotBlank() &&
                         (protocolType != "xtream" || (username.isNotBlank() && password.isNotBlank())) &&
-                        (protocolType != "stalker" || (username.isNotBlank() && password.isNotBlank() && macAddress.isNotBlank())) &&
                         (protocolType != "mac" || macAddress.isNotBlank())
             ) {
                 if (isLoading) {
