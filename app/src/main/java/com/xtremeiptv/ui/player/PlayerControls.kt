@@ -1,6 +1,11 @@
 package com.xtremeiptv.ui.player
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +30,6 @@ fun PlayerControls(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Seek bar
         Slider(
             value = currentPosition.toFloat(),
             onValueChange = { onSeek(it.toLong()) },
@@ -35,13 +39,12 @@ fun PlayerControls(
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // Transport controls
         Row(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onSkipBackward) {
-                Icon(Icons.Default.Replay, contentDescription = "-10s")
+                Icon(Icons.Default.FastRewind, contentDescription = "-10s")
             }
             
             IconButton(onClick = onPlayPause) {
@@ -52,13 +55,12 @@ fun PlayerControls(
             }
             
             IconButton(onClick = onSkipForward) {
-                Icon(Icons.Default.Forward, contentDescription = "+10s")
+                Icon(Icons.Default.FastForward, contentDescription = "+10s")
             }
         }
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // Speed control
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
