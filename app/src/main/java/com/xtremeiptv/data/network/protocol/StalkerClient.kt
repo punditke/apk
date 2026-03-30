@@ -14,26 +14,72 @@ import javax.inject.Singleton
 @Singleton
 class StalkerClient @Inject constructor() {
     
-    data class StalkerCredentials(val url: String, val username: String, val password: String, val mac: String)
-    data class UserInfo(val createdDate: String?, val expiryDate: String?, val maxConnections: Int?, val tariffPlan: String?)
+    data class StalkerCredentials(
+        val url: String, 
+        val username: String, 
+        val password: String, 
+        val mac: String
+    )
+    
+    data class UserInfo(
+        val createdDate: String?, 
+        val expiryDate: String?, 
+        val maxConnections: Int?, 
+        val tariffPlan: String?
+    )
     
     @Serializable
-    private data class AuthResponse(val auth: Int, val token: String? = null)
+    private data class AuthResponse(
+        val auth: Int, 
+        val token: String? = null
+    )
     
     @Serializable
-    private data class ChannelListResponse(val data: List<StalkerChannel>? = null)
-    @Serializable
-    private data class StalkerChannel(val id: String, val name: String, val logo: String? = null, val cmd: String, val genre: String? = null)
+    private data class ChannelListResponse(
+        val data: List<StalkerChannel>? = null
+    )
     
     @Serializable
-    private data class VodListResponse(val data: List<StalkerVod>? = null)
-    @Serializable
-    private data class StalkerVod(val id: String, val name: String, val poster: String? = null, val description: String? = null, val duration: String? = null, val rating: String? = null, val year: String? = null, val cmd: String)
+    private data class StalkerChannel(
+        val id: String, 
+        val name: String, 
+        val logo: String? = null, 
+        val cmd: String, 
+        val genre: String? = null
+    )
     
     @Serializable
-    private data class SeriesListResponse(val data: List<StalkerSeries>? = null)
+    private data class VodListResponse(
+        val data: List<StalkerVod>? = null
+    )
+    
     @Serializable
-    private data class StalkerSeries(val id: String, val name: String, val poster: String? = null, val description: String? = null, val rating: String? = null, val year: String? = null, val cmd: String)
+    private data class StalkerVod(
+        val id: String, 
+        val name: String, 
+        val poster: String? = null, 
+        val description: String? = null, 
+        val duration: String? = null, 
+        val rating: String? = null, 
+        val year: String? = null, 
+        val cmd: String
+    )
+    
+    @Serializable
+    private data class SeriesListResponse(
+        val data: List<StalkerSeries>? = null
+    )
+    
+    @Serializable
+    private data class StalkerSeries(
+        val id: String, 
+        val name: String, 
+        val poster: String? = null, 
+        val description: String? = null, 
+        val rating: String? = null, 
+        val year: String? = null, 
+        val cmd: String
+    )
     
     private suspend fun getToken(creds: StalkerCredentials): String? = withContext(Dispatchers.IO) {
         try {
@@ -41,7 +87,9 @@ class StalkerClient @Inject constructor() {
             val response = URL(url).readText()
             val auth = Json.decodeFromString<AuthResponse>(response)
             if (auth.auth == 1) auth.token else null
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getAccountInfo(creds: StalkerCredentials): UserInfo? = withContext(Dispatchers.IO) {
@@ -49,9 +97,12 @@ class StalkerClient @Inject constructor() {
             val token = getToken(creds) ?: return@withContext null
             val url = "${creds.url}/stalker_portal/api/v1/user?token=$token"
             val response = URL(url).readText()
-            // Parse actual response from server - returns null for now until API response format is known
+            // Parse actual response from server
+            // For now return null until API format is known
             UserInfo(null, null, null, null)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getLiveChannels(creds: StalkerCredentials): List<Channel> = withContext(Dispatchers.IO) {
@@ -69,7 +120,9 @@ class StalkerClient @Inject constructor() {
                     groupTitle = it.genre
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
     
     suspend fun getVodMovies(creds: StalkerCredentials): List<VodItem> = withContext(Dispatchers.IO) {
@@ -90,7 +143,9 @@ class StalkerClient @Inject constructor() {
                     releaseDate = it.year
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
     
     suspend fun getSeries(creds: StalkerCredentials): List<Series> = withContext(Dispatchers.IO) {
@@ -109,6 +164,8 @@ class StalkerClient @Inject constructor() {
                     releaseDate = it.year
                 ) 
             } ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+        } catch (e: Exception) { 
+            emptyList() 
+        }
     }
 }
