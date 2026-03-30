@@ -11,6 +11,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.xtremeiptv.data.network.model.Channel
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
