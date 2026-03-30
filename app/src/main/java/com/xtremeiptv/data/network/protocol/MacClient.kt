@@ -37,6 +37,39 @@ class MacClient @Inject constructor() {
         val category: String? = null
     )
     
+    @Serializable
+    private data class VodListResponse(
+        val data: List<MacVod>? = null
+    )
+    
+    @Serializable
+    private data class MacVod(
+        val id: String,
+        val name: String,
+        val poster: String? = null,
+        val description: String? = null,
+        val duration: String? = null,
+        val rating: String? = null,
+        val year: String? = null,
+        val stream_url: String
+    )
+    
+    @Serializable
+    private data class SeriesListResponse(
+        val data: List<MacSeries>? = null
+    )
+    
+    @Serializable
+    private data class MacSeries(
+        val id: String,
+        val name: String,
+        val poster: String? = null,
+        val description: String? = null,
+        val rating: String? = null,
+        val year: String? = null,
+        val stream_url: String
+    )
+    
     suspend fun authenticate(creds: MacCredentials): String? = withContext(Dispatchers.IO) {
         try {
             val url = "${creds.url}/c/?mac=${creds.mac}&type=stb"
@@ -71,8 +104,19 @@ class MacClient @Inject constructor() {
         try {
             val url = "$baseUrl/c/get_vod?token=$token"
             val response = URL(url).readText()
-            // Parse VOD - simplified
-            emptyList()
+            val wrapper = Json.decodeFromString<VodListResponse>(response)
+            wrapper.data?.map {
+                VodItem(
+                    id = it.id,
+                    title = it.name,
+                    streamUrl = it.stream_url,
+                    posterUrl = it.poster,
+                    plot = it.description,
+                    duration = it.duration,
+                    rating = it.rating?.toFloatOrNull(),
+                    releaseDate = it.year
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
@@ -82,7 +126,17 @@ class MacClient @Inject constructor() {
         try {
             val url = "$baseUrl/c/get_series?token=$token"
             val response = URL(url).readText()
-            emptyList()
+            val wrapper = Json.decodeFromString<SeriesListResponse>(response)
+            wrapper.data?.map {
+                Series(
+                    id = it.id,
+                    name = it.name,
+                    coverUrl = it.poster,
+                    plot = it.description,
+                    rating = it.rating?.toFloatOrNull(),
+                    releaseDate = it.year
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
