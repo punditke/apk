@@ -30,6 +30,7 @@ fun ProfileAddEditScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var macAddress by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
     
     LaunchedEffect(existingProfile) {
         existingProfile?.let {
@@ -72,6 +73,59 @@ fun ProfileAddEditScreen(
                 singleLine = true
             )
             
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
+            ) {
+                OutlinedTextField(
+                    value = when (protocolType) {
+                        "m3u" -> "M3U (URL or File)"
+                        "xtream" -> "XTream Codes"
+                        "stalker" -> "Stalker Portal"
+                        "mac" -> "MAC Portal"
+                        else -> "Select Protocol"
+                    },
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Protocol") }
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("M3U (URL or File)") },
+                        onClick = {
+                            protocolType = "m3u"
+                            expanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("XTream Codes (URL + User + Pass)") },
+                        onClick = {
+                            protocolType = "xtream"
+                            expanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Stalker Portal (URL + User + Pass + MAC)") },
+                        onClick = {
+                            protocolType = "stalker"
+                            expanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("MAC Portal (URL + MAC)") },
+                        onClick = {
+                            protocolType = "mac"
+                            expanded = false
+                        }
+                    )
+                }
+            }
+            
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
@@ -81,30 +135,34 @@ fun ProfileAddEditScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
             )
             
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username (optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            if (protocolType == "xtream" || protocolType == "stalker") {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
             
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password (optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            
-            OutlinedTextField(
-                value = macAddress,
-                onValueChange = { macAddress = it },
-                label = { Text("MAC Address (optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("00:1A:79:00:00:00") }
-            )
+            if (protocolType == "stalker" || protocolType == "mac") {
+                OutlinedTextField(
+                    value = macAddress,
+                    onValueChange = { macAddress = it },
+                    label = { Text("MAC Address") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("00:1A:79:00:00:00") }
+                )
+            }
             
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
@@ -127,7 +185,10 @@ fun ProfileAddEditScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank() && serverUrl.isNotBlank()
+                enabled = name.isNotBlank() && serverUrl.isNotBlank() &&
+                        (protocolType != "xtream" || (username.isNotBlank() && password.isNotBlank())) &&
+                        (protocolType != "stalker" || (username.isNotBlank() && password.isNotBlank() && macAddress.isNotBlank())) &&
+                        (protocolType != "mac" || macAddress.isNotBlank())
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
