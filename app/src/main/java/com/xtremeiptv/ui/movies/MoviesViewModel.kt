@@ -3,8 +3,7 @@ package com.xtremeiptv.ui.movies
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.network.model.VodItem
-import com.xtremeiptv.data.network.protocol.XtreamClient
-import com.xtremeiptv.data.repository.ContentRepository
+import com.xtremeiptv.data.network.protocol.*
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -14,8 +13,10 @@ import javax.inject.Inject
 @HiltViewModel
 class MoviesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val contentRepository: ContentRepository,
-    private val xtreamClient: XtreamClient
+    private val xtreamClient: XtreamClient,
+    private val stalkerClient: StalkerClient,
+    private val macClient: MacClient,
+    private val m3uLoader: M3uLoader
 ) : ViewModel() {
     
     private val _movies = MutableStateFlow<List<VodItem>>(emptyList())
@@ -50,16 +51,37 @@ class MoviesViewModel @Inject constructor(
                         xtreamClient.getVodMovies(creds)
                     }
                     "m3u" -> {
-                        // Load from M3U - implement
-                        emptyList()
+                        val m3uResult = if (profile.serverUrl.startsWith("http")) {
+                            m3uLoader.loadFromUrl(profile.serverUrl)
+                        } else {
+                            m3uLoader.loadFromFile(profile.serverUrl)
+                        }
+                        m3uResult.movies
                     }
                     "stalker" -> {
-                        // Stalker implementation
-                        emptyList()
+                        val creds = StalkerClient.StalkerCredentials(
+                            profile.serverUrl,
+                            profile.username!!,
+                            profile.password!!,
+                            profile.macAddress!!
+                        )
+                        val token = stalkerClient.authenticate(creds)
+                        if (token != null) {
+                            stalkerClient.getVodMovies(profile.serverUrl, token)
+                        } else {
+                            _error.value = "Stalker auth failed"
+                            emptyList()
+                        }
                     }
                     "mac" -> {
-                        // MAC implementation
-                        emptyList()
+                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress!!)
+                        val token = macClient.authenticate(creds)
+                        if (token != null) {
+                            macClient.getVodMovies(profile.serverUrl, token)
+                        } else {
+                            _error.value = "MAC auth failed"
+                            emptyList()
+                        }
                     }
                     else -> emptyList()
                 }
