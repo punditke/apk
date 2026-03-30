@@ -65,7 +65,6 @@ fun ProfileAddEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Profile Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -74,7 +73,6 @@ fun ProfileAddEditScreen(
                 singleLine = true
             )
             
-            // Protocol Selection Dropdown
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
@@ -128,7 +126,6 @@ fun ProfileAddEditScreen(
                 }
             }
             
-            // Server URL
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
@@ -139,7 +136,6 @@ fun ProfileAddEditScreen(
                 placeholder = { Text("http://tv.push4k.tv/stalker_portal/c/") }
             )
             
-            // Conditional fields based on protocol
             if (protocolType == "xtream") {
                 OutlinedTextField(
                     value = username,
@@ -169,7 +165,6 @@ fun ProfileAddEditScreen(
                 )
             }
             
-            // Optional username/password for Stalker
             if (protocolType == "stalker") {
                 OutlinedTextField(
                     value = username,
@@ -188,14 +183,12 @@ fun ProfileAddEditScreen(
                 )
             }
             
-            // Error message
             error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
             
             Spacer(modifier = Modifier.weight(1f))
             
-            // Save Button
             Button(
                 onClick = {
                     viewModel.saveProfile(
