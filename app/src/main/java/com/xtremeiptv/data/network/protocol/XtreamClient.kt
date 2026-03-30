@@ -96,8 +96,10 @@ class XtreamClient @Inject constructor() {
             val response = URL(url).readText()
             val seriesList = Json.decodeFromString<List<ApiSeries>>(response)
             seriesList.map {
-                Series(id = it.series_id, name = it.name, coverUrl = it.cover,
-                    backdropUrl = it.backdrop_path, plot = it.plot, rating = it.rating?.toFloatOrNull())
+                Series(
+                    id = it.series_id, name = it.name, coverUrl = it.cover,
+                    backdropUrl = it.backdrop_path, plot = it.plot, rating = it.rating?.toFloatOrNull()
+                )
             }
         } catch (e: Exception) { emptyList() }
     }
