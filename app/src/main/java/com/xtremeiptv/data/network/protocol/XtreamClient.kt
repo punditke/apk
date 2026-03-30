@@ -15,38 +15,49 @@ import javax.inject.Singleton
 class XtreamClient @Inject constructor() {
     
     data class Credentials(val url: String, val username: String, val password: String)
+    data class UserInfo(val createdDate: String?, val expiryDate: String?, val maxConnections: Int?, val tariffPlan: String?)
     
     @Serializable
     private data class ApiLiveStream(
-        val stream_id: String,
-        val name: String,
-        val stream_icon: String? = null,
-        val epg_channel_id: String? = null,
-        val category_name: String? = null,
-        val stream_type: String? = null
+        val stream_id: String, val name: String, val stream_icon: String? = null,
+        val epg_channel_id: String? = null, val category_name: String? = null, val stream_type: String? = null
     )
     
     @Serializable
     private data class ApiVodStream(
-        val stream_id: String,
-        val name: String,
-        val stream_icon: String? = null,
-        val container_extension: String? = null,
-        val plot: String? = null,
-        val backdrop_path: String? = null,
-        val duration: String? = null,
-        val rating: String? = null
+        val stream_id: String, val name: String, val stream_icon: String? = null,
+        val container_extension: String? = null, val plot: String? = null,
+        val backdrop_path: String? = null, val duration: String? = null, val rating: String? = null
     )
     
     @Serializable
     private data class ApiSeries(
-        val series_id: String,
-        val name: String,
-        val cover: String? = null,
-        val plot: String? = null,
-        val backdrop_path: String? = null,
-        val rating: String? = null
+        val series_id: String, val name: String, val cover: String? = null,
+        val plot: String? = null, val backdrop_path: String? = null, val rating: String? = null
     )
+    
+    @Serializable
+    private data class UserInfoResponse(
+        val username: String, val exp_date: String? = null, val created_at: String? = null,
+        val max_connections: String? = null, val tariff_plan: String? = null
+    )
+    
+    suspend fun getAccountInfo(creds: Credentials): UserInfo? = withContext(Dispatchers.IO) {
+        try {
+            val url = "${creds.url}/player_api.php?username=${creds.username}&password=${creds.password}"
+            val response = URL(url).readText()
+            val user = Json.decodeFromString<UserInfoResponse>(response)
+            UserInfo(
+                createdDate = user.created_at,
+                expiryDate = user.exp_date?.let { 
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        .format(java.util.Date(it.toLong() * 1000))
+                },
+                maxConnections = user.max_connections?.toIntOrNull(),
+                tariffPlan = user.tariff_plan
+            )
+        } catch (e: Exception) { null }
+    }
     
     suspend fun getLiveChannels(creds: Credentials): List<Channel> = withContext(Dispatchers.IO) {
         try {
@@ -55,12 +66,9 @@ class XtreamClient @Inject constructor() {
             val streams = Json.decodeFromString<List<ApiLiveStream>>(response)
             streams.map {
                 Channel(
-                    id = it.stream_id,
-                    name = it.name,
+                    id = it.stream_id, name = it.name,
                     streamUrl = "${creds.url}/live/${creds.username}/${creds.password}/${it.stream_id}.${it.stream_type ?: "ts"}",
-                    logoUrl = it.stream_icon,
-                    groupTitle = it.category_name,
-                    epgId = it.epg_channel_id
+                    logoUrl = it.stream_icon, groupTitle = it.category_name, epgId = it.epg_channel_id
                 )
             }
         } catch (e: Exception) { emptyList() }
@@ -73,14 +81,10 @@ class XtreamClient @Inject constructor() {
             val streams = Json.decodeFromString<List<ApiVodStream>>(response)
             streams.map {
                 VodItem(
-                    id = it.stream_id,
-                    title = it.name,
+                    id = it.stream_id, title = it.name,
                     streamUrl = "${creds.url}/movie/${creds.username}/${creds.password}/${it.stream_id}.${it.container_extension ?: "mp4"}",
-                    posterUrl = it.stream_icon,
-                    backdropUrl = it.backdrop_path,
-                    plot = it.plot,
-                    duration = it.duration,
-                    rating = it.rating?.toFloatOrNull()
+                    posterUrl = it.stream_icon, backdropUrl = it.backdrop_path,
+                    plot = it.plot, duration = it.duration, rating = it.rating?.toFloatOrNull()
                 )
             }
         } catch (e: Exception) { emptyList() }
@@ -92,14 +96,8 @@ class XtreamClient @Inject constructor() {
             val response = URL(url).readText()
             val seriesList = Json.decodeFromString<List<ApiSeries>>(response)
             seriesList.map {
-                Series(
-                    id = it.series_id,
-                    name = it.name,
-                    coverUrl = it.cover,
-                    backdropUrl = it.backdrop_path,
-                    plot = it.plot,
-                    rating = it.rating?.toFloatOrNull()
-                )
+                Series(id = it.series_id, name = it.name, coverUrl = it.cover,
+                    backdropUrl = it.backdrop_path, plot = it.plot, rating = it.rating?.toFloatOrNull())
             }
         } catch (e: Exception) { emptyList() }
     }
