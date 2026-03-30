@@ -3,7 +3,6 @@ package com.xtremeiptv.data.repository
 import com.xtremeiptv.data.database.AppDatabase
 import com.xtremeiptv.data.database.entity.Profile
 import com.xtremeiptv.data.local.EncryptedPrefs
-import com.xtremeiptv.data.network.protocol.ProtocolDetector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -12,8 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class ProfileRepository @Inject constructor(
     private val database: AppDatabase,
-    private val encryptedPrefs: EncryptedPrefs,
-    private val protocolDetector: ProtocolDetector
+    private val encryptedPrefs: EncryptedPrefs
 ) {
     private val profileDao = database.profileDao()
     
@@ -23,17 +21,6 @@ class ProfileRepository @Inject constructor(
     
     suspend fun addProfile(profile: Profile): Boolean {
         return try {
-            val detection = protocolDetector.detect(
-                serverUrl = profile.serverUrl,
-                username = profile.username,
-                password = profile.password,
-                macAddress = profile.macAddress
-            )
-            
-            if (detection is ProtocolDetector.DetectionResult.Unknown) {
-                return false
-            }
-            
             profileDao.insertProfile(profile)
             true
         } catch (e: Exception) {
@@ -62,15 +49,5 @@ class ProfileRepository @Inject constructor(
     
     suspend fun getLastActiveProfile(): String? {
         return encryptedPrefs.getString("last_active_profile")
-    }
-    
-    suspend fun validateProfile(profile: Profile): Boolean {
-        val detection = protocolDetector.detect(
-            serverUrl = profile.serverUrl,
-            username = profile.username,
-            password = profile.password,
-            macAddress = profile.macAddress
-        )
-        return detection !is ProtocolDetector.DetectionResult.Unknown
     }
 }
