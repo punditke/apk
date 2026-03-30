@@ -5,11 +5,7 @@ import androidx.room.Room
 import com.xtremeiptv.data.database.AppDatabase
 import com.xtremeiptv.data.local.EncryptedPrefs
 import com.xtremeiptv.data.local.FileStorage
-import com.xtremeiptv.data.network.protocol.M3uParser
-import com.xtremeiptv.data.network.protocol.MacClient
-import com.xtremeiptv.data.network.protocol.ProtocolDetector
-import com.xtremeiptv.data.network.protocol.StalkerClient
-import com.xtremeiptv.data.network.protocol.XtreamClient
+import com.xtremeiptv.data.network.protocol.*
 import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.PlayerRepository
 import com.xtremeiptv.data.repository.ProfileRepository
@@ -44,14 +40,14 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideProtocolDetector(): ProtocolDetector {
-        return ProtocolDetector()
+    fun provideM3uParser(): M3uParser {
+        return M3uParser()
     }
     
     @Provides
     @Singleton
-    fun provideM3uParser(): M3uParser {
-        return M3uParser()
+    fun provideM3uLoader(parser: M3uParser): M3uLoader {
+        return M3uLoader(parser)
     }
     
     @Provides
@@ -76,10 +72,9 @@ object AppModule {
     @Singleton
     fun provideProfileRepository(
         database: AppDatabase,
-        encryptedPrefs: EncryptedPrefs,
-        protocolDetector: ProtocolDetector
+        encryptedPrefs: EncryptedPrefs
     ): ProfileRepository {
-        return ProfileRepository(database, encryptedPrefs, protocolDetector)
+        return ProfileRepository(database, encryptedPrefs)
     }
     
     @Provides
