@@ -55,6 +55,7 @@ class AccountViewModel @Inject constructor(
                     .replace("https://", "")
                     .split("/")[0]
                 
+                // Fetch real account data based on protocol
                 val accountData = when (profile.protocolType) {
                     "xtream" -> {
                         val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
@@ -76,6 +77,12 @@ class AccountViewModel @Inject constructor(
                     else -> null
                 }
                 
+                // Extract values safely
+                val createdDate = accountData?.let { it.createdDate }
+                val expiryDate = accountData?.let { it.expiryDate }
+                val tariffPlan = accountData?.let { it.tariffPlan }
+                val maxConnections = accountData?.let { it.maxConnections }
+                
                 _accountInfo.value = AccountInfo(
                     portalUrl = profile.serverUrl,
                     serverIp = serverIp,
@@ -83,11 +90,11 @@ class AccountViewModel @Inject constructor(
                     status = if (accountData != null) "Connected" else "Error",
                     macAddress = profile.macAddress,
                     username = profile.username,
-                    createdDate = accountData?.createdDate,
-                    expiryDate = accountData?.expiryDate,
-                    remainingDays = accountData?.expiryDate?.let { calculateRemainingDays(it) },
-                    tariffPlan = accountData?.tariffPlan,
-                    maxConnections = accountData?.maxConnections
+                    createdDate = createdDate,
+                    expiryDate = expiryDate,
+                    remainingDays = if (expiryDate != null) calculateRemainingDays(expiryDate) else null,
+                    tariffPlan = tariffPlan,
+                    maxConnections = maxConnections
                 )
             }
             
