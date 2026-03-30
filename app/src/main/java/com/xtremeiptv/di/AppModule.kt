@@ -1,5 +1,6 @@
 package com.xtremeiptv.di
 
+import com.xtremeiptv.data.network.protocol.M3uLoader
 import android.content.Context
 import androidx.room.Room
 import com.xtremeiptv.data.database.AppDatabase
