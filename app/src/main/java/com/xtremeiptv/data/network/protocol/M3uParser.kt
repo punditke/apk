@@ -35,33 +35,59 @@ class M3uParser @Inject constructor() {
                 val infoLine = line
                 val urlLine = if (i + 1 < lines.size) lines[i + 1].trim() else ""
                 
-                val channel = parseExtinf(infoLine, urlLine)
+                val duration = extractDuration(infoLine)
+                val name = extractName(infoLine)
+                val groupTitle = extractGroupTitle(infoLine)
+                val logo = extractLogo(infoLine)
+                val tvgId = extractTvgId(infoLine)
+                
+                // Check if it's a movie or series
+                val isMovie = groupTitle?.contains("MOVIE", ignoreCase = true) == true ||
+                              groupTitle?.contains("PELICULA", ignoreCase = true) == true
+                val isSeries = groupTitle?.contains("SERIES", ignoreCase = true) == true ||
+                               groupTitle?.contains("SHOW", ignoreCase = true) == true
                 
                 when {
-                    infoLine.contains("group-title=\"MOVIE\"") || infoLine.contains("group-title=\"Movie\"") -> {
+                    isSeries -> {
+                        val seriesTitle = extractSeriesTitle(infoLine) ?: name
+                        val episodeNum = extractEpisodeNumber(infoLine)
+                        val seasonNum = extractSeasonNumber(infoLine)
+                        
+                        val episode = Episode(
+                            id = UUID.randomUUID().toString(),
+                            title = name,
+                            streamUrl = urlLine,
+                            episodeNumber = episodeNum,
+                            seasonNumber = seasonNum,
+                            plot = null,
+                            duration = if (duration > 0) "${duration}s" else null,
+                            thumbnailUrl = logo
+                        )
+                        seriesMap.getOrPut(seriesTitle) { mutableListOf() }.add(episode)
+                    }
+                    isMovie -> {
                         movies.add(
                             VodItem(
                                 id = UUID.randomUUID().toString(),
-                                title = channel.name,
+                                title = name,
                                 streamUrl = urlLine,
-                                posterUrl = extractLogo(infoLine)
+                                posterUrl = logo,
+                                plot = null,
+                                duration = if (duration > 0) "${duration}s" else null
                             )
                         )
                     }
-                    infoLine.contains("group-title=\"SERIES\"") || infoLine.contains("group-title=\"Series\"") -> {
-                        val episode = Episode(
-                            id = UUID.randomUUID().toString(),
-                            title = channel.name,
-                            streamUrl = urlLine,
-                            episodeNumber = extractEpisodeNumber(infoLine),
-                            seasonNumber = extractSeasonNumber(infoLine),
-                            thumbnailUrl = extractLogo(infoLine)
-                        )
-                        val seriesKey = extractSeriesTitle(infoLine)
-                        seriesMap.getOrPut(seriesKey) { mutableListOf() }.add(episode)
-                    }
                     else -> {
-                        channels.add(channel)
+                        channels.add(
+                            Channel(
+                                id = UUID.randomUUID().toString(),
+                                name = name,
+                                streamUrl = urlLine,
+                                logoUrl = logo,
+                                groupTitle = groupTitle,
+                                epgId = tvgId
+                            )
+                        )
                     }
                 }
                 i += 2
@@ -88,23 +114,6 @@ class M3uParser @Inject constructor() {
         ParseResult(channels, movies, series)
     }
     
-    private fun parseExtinf(infoLine: String, url: String): Channel {
-        val duration = extractDuration(infoLine)
-        val name = extractName(infoLine)
-        val groupTitle = extractGroupTitle(infoLine)
-        val logo = extractLogo(infoLine)
-        val epgId = extractEpgId(infoLine)
-        
-        return Channel(
-            id = UUID.randomUUID().toString(),
-            name = name,
-            streamUrl = url,
-            logoUrl = logo,
-            groupTitle = groupTitle,
-            epgId = epgId
-        )
-    }
-    
     private fun extractDuration(line: String): Int {
         val regex = """#EXTINF:(-?\d+)""".toRegex()
         return regex.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: -1
@@ -113,13 +122,23 @@ class M3uParser @Inject constructor() {
     private fun extractName(line: String): String {
         val regex = """,([^,]+)$""".toRegex()
         val raw = regex.find(line)?.groupValues?.get(1) ?: "Unknown"
-        return URLDecoder.decode(raw, "UTF-8").trim()
+        return try {
+            URLDecoder.decode(raw, "UTF-8").trim()
+        } catch (e: Exception) {
+            raw.trim()
+        }
     }
     
     private fun extractGroupTitle(line: String): String? {
         val regex = """group-title="([^"]+)"""".toRegex()
         val raw = regex.find(line)?.groupValues?.get(1)
-        return raw?.let { URLDecoder.decode(it, "UTF-8") }
+        return raw?.let {
+            try {
+                URLDecoder.decode(it, "UTF-8")
+            } catch (e: Exception) {
+                it
+            }
+        }
     }
     
     private fun extractLogo(line: String): String? {
@@ -127,7 +146,7 @@ class M3uParser @Inject constructor() {
         return regex.find(line)?.groupValues?.get(1)
     }
     
-    private fun extractEpgId(line: String): String? {
+    private fun extractTvgId(line: String): String? {
         val regex = """tvg-id="([^"]+)"""".toRegex()
         return regex.find(line)?.groupValues?.get(1)
     }
@@ -142,8 +161,15 @@ class M3uParser @Inject constructor() {
         return regex.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 1
     }
     
-    private fun extractSeriesTitle(line: String): String {
+    private fun extractSeriesTitle(line: String): String? {
         val regex = """series-title="([^"]+)"""".toRegex()
-        return regex.find(line)?.groupValues?.get(1)?.let { URLDecoder.decode(it, "UTF-8") } ?: "Unknown Series"
+        val raw = regex.find(line)?.groupValues?.get(1)
+        return raw?.let {
+            try {
+                URLDecoder.decode(it, "UTF-8")
+            } catch (e: Exception) {
+                it
+            }
+        }
     }
 }
