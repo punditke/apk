@@ -19,6 +19,7 @@ import com.xtremeiptv.ui.player.PlayerActivity
 
 @Composable
 fun MoviesTabScreen(
+    onPlay: (String, String, String, String) -> Unit,
     viewModel: MoviesViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -61,15 +62,12 @@ fun MoviesTabScreen(
                         MovieItem(
                             movie = movie,
                             onClick = {
-                                PlayerActivity.newIntent(
-                                    context,
+                                onPlay(
                                     movie.id,
                                     "movie",
                                     movie.title,
                                     movie.streamUrl
-                                ).let { intent ->
-                                    context.startActivity(intent)
-                                }
+                                )
                             }
                         )
                     }
