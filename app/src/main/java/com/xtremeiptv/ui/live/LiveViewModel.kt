@@ -25,8 +25,6 @@ class LiveViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
-    private var currentProfileId: String? = null
-    
     init {
         loadChannels()
     }
@@ -44,19 +42,14 @@ class LiveViewModel @Inject constructor(
                     return@launch
                 }
                 
-                currentProfileId = profile.id
                 val result = contentRepository.loadLiveChannels(profile, useCache = !forceRefresh)
-                
                 _channels.value = result
                 
                 if (result.isEmpty() && !forceRefresh) {
-                    // If cache was empty, try force refresh from network
                     loadChannels(forceRefresh = true)
-                } else if (result.isEmpty()) {
-                    _error.value = "No channels found"
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load channels"
+                _error.value = e.message
             } finally {
                 _isLoading.value = false
             }
@@ -65,9 +58,5 @@ class LiveViewModel @Inject constructor(
     
     fun refresh() {
         loadChannels(forceRefresh = true)
-    }
-    
-    fun clearError() {
-        _error.value = null
     }
 }
