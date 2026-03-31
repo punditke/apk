@@ -91,7 +91,7 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun providePlayerRepository(): PlayerRepository {
-        return PlayerRepository()
+    fun providePlayerRepository(@ApplicationContext context: Context): PlayerRepository {
+        return PlayerRepository(context)
     }
 }
