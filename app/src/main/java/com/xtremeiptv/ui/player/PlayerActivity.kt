@@ -3,7 +3,7 @@ package com.xtremeiptv.ui.player
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.view.KeyEvent
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,27 +22,32 @@ import dagger.hilt.android.AndroidEntryPoint
 class PlayerActivity : ComponentActivity() {
     
     companion object {
-        private const val EXTRA_CONTENT_ID = "content_id"
-        private const val EXTRA_CONTENT_TYPE = "content_type"
-        private const val EXTRA_TITLE = "title"
-        private const val EXTRA_STREAM_URL = "stream_url"
+        private const val TAG = "PlayerActivity"
         
         fun newIntent(context: Context, contentId: String, contentType: String, title: String, streamUrl: String): Intent {
+            Log.d(TAG, "newIntent: contentId=$contentId, contentType=$contentType, title=$title, streamUrl=$streamUrl")
             return Intent(context, PlayerActivity::class.java).apply {
-                putExtra(EXTRA_CONTENT_ID, contentId)
-                putExtra(EXTRA_CONTENT_TYPE, contentType)
-                putExtra(EXTRA_TITLE, title)
-                putExtra(EXTRA_STREAM_URL, streamUrl)
+                putExtra("content_id", contentId)
+                putExtra("content_type", contentType)
+                putExtra("title", title)
+                putExtra("stream_url", streamUrl)
             }
         }
     }
     
-    private var streamUrl: String = ""
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate")
         
-        streamUrl = intent.getStringExtra(EXTRA_STREAM_URL) ?: ""
+        val streamUrl = intent.getStringExtra("stream_url") ?: ""
+        
+        if (streamUrl.isEmpty()) {
+            Log.e(TAG, "No stream URL provided, finishing")
+            finish()
+            return
+        }
+        
+        Log.d(TAG, "Stream URL: $streamUrl")
         
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
@@ -51,34 +56,19 @@ class PlayerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     PlayerScreen(
                         streamUrl = streamUrl,
-                        onBack = { finish() }
+                        onBack = { 
+                            Log.d(TAG, "onBack called")
+                            finish() 
+                        }
                     )
                 }
             }
         }
     }
     
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-    }
-    
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-    
-    override fun onPause() {
-        super.onPause()
-        if (!isInPictureInPictureMode) {
-            // Pause playback when not in PIP mode
-            // ViewModel handles this via lifecycle
-        }
-    }
-    
     override fun onDestroy() {
         super.onDestroy()
+        Log.d(TAG, "onDestroy")
     }
 }
 
@@ -95,14 +85,14 @@ fun PlayerScreen(
     val error by viewModel.error.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
-    // Load stream when screen appears
     LaunchedEffect(Unit) {
+        Log.d("PlayerScreen", "Loading stream: $streamUrl")
         viewModel.loadStream(streamUrl)
     }
     
-    // Clean up when screen disappears
     DisposableEffect(Unit) {
         onDispose {
+            Log.d("PlayerScreen", "Disposing player")
             viewModel.release()
         }
     }
@@ -129,11 +119,26 @@ fun PlayerScreen(
             playbackSpeed = playbackSpeed,
             title = "Playing",
             contentType = "video",
-            onPlayPause = { if (isPlaying) viewModel.pause() else viewModel.play() },
-            onSeek = { viewModel.seekTo(it) },
-            onSpeedChange = { viewModel.setPlaybackSpeed(it) },
-            onSkipForward = { viewModel.seekTo(currentPosition + 10000) },
-            onSkipBackward = { viewModel.seekTo(currentPosition - 10000) },
+            onPlayPause = { 
+                Log.d("PlayerScreen", "Play/Pause clicked")
+                if (isPlaying) viewModel.pause() else viewModel.play() 
+            },
+            onSeek = { position -> 
+                Log.d("PlayerScreen", "Seek to: $position")
+                viewModel.seekTo(position) 
+            },
+            onSpeedChange = { speed -> 
+                Log.d("PlayerScreen", "Speed change: $speed")
+                viewModel.setPlaybackSpeed(speed) 
+            },
+            onSkipForward = { 
+                Log.d("PlayerScreen", "Skip forward")
+                viewModel.seekTo(currentPosition + 10000) 
+            },
+            onSkipBackward = { 
+                Log.d("PlayerScreen", "Skip backward")
+                viewModel.seekTo(currentPosition - 10000) 
+            },
             onBack = onBack
         )
         
