@@ -50,25 +50,33 @@ class PlayerRepository @Inject constructor() {
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
-        val context = appContext ?: return
-        
-        if (exoPlayer == null) {
-            initializePlayer(context)
+        val context = appContext
+        if (context == null) {
+            _error.value = "Player not initialized"
+            return
         }
         
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(10000)
-            .setReadTimeoutMs(10000)
-        
-        val mediaSource = HlsMediaSource.Factory(dataSourceFactory)
-            .createMediaSource(MediaItem.fromUri(Uri.parse(url)))
-        
-        exoPlayer?.apply {
-            setMediaSource(mediaSource)
-            prepare()
-            seekTo(resumePosition)
-            play()
+        try {
+            if (exoPlayer == null) {
+                initializePlayer(context)
+            }
+            
+            val dataSourceFactory = DefaultHttpDataSource.Factory()
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(10000)
+                .setReadTimeoutMs(10000)
+            
+            val mediaSource = HlsMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(MediaItem.fromUri(Uri.parse(url)))
+            
+            exoPlayer?.apply {
+                setMediaSource(mediaSource)
+                prepare()
+                seekTo(resumePosition)
+                play()
+            }
+        } catch (e: Exception) {
+            _error.value = "Failed to load stream: ${e.message}"
         }
     }
     
