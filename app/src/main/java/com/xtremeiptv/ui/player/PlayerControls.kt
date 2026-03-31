@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -65,6 +64,7 @@ fun PlayerControls(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.7f))
             ) {
+                // Top bar with back button and title
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -86,6 +86,7 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
+                // Center play/pause controls
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -113,6 +114,7 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
+                // Seek bar
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -147,6 +149,7 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                // Speed controls
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -188,6 +191,7 @@ fun SpeedChip(speed: Float, currentSpeed: Float, onSpeedChange: (Float) -> Unit)
 }
 
 private fun formatTime(millis: Long): String {
+    if (millis <= 0) return "00:00"
     val seconds = (millis / 1000) % 60
     val minutes = (millis / (1000 * 60)) % 60
     val hours = millis / (1000 * 60 * 60)
