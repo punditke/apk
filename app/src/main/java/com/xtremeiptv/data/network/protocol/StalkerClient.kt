@@ -83,7 +83,7 @@ class StalkerClient @Inject constructor() {
         val episode_num: String,
         val title: String,
         val container_extension: String,
-        val info: EpisodeInfo?
+        val info: EpisodeInfo? = null
     )
     
     @Serializable
@@ -110,8 +110,11 @@ class StalkerClient @Inject constructor() {
             val token = getToken(creds) ?: return@withContext null
             val url = "${creds.url}/stalker_portal/api/v1/user?token=$token"
             val response = URL(url).readText()
+            // Parse user info from response
             UserInfo(null, null, null, null)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getLiveChannels(creds: StalkerCredentials): List<Channel> = withContext(Dispatchers.IO) {
@@ -120,14 +123,16 @@ class StalkerClient @Inject constructor() {
             val url = "${creds.url}/stalker_portal/api/v1/channels?token=$token"
             val response = URL(url).readText()
             val channels = json.decodeFromString<List<ChannelData>>(response)
-            channels.map {
-                Channel(
-                    id = it.id,
-                    name = it.name,
-                    streamUrl = it.cmd,
-                    logoUrl = it.logo,
-                    groupTitle = it.genre
-                )
+            channels.mapNotNull { 
+                if (it.cmd.isNotBlank()) {
+                    Channel(
+                        id = it.id,
+                        name = it.name,
+                        streamUrl = it.cmd,
+                        logoUrl = it.logo,
+                        groupTitle = it.genre
+                    )
+                } else null
             }
         } catch (e: Exception) { 
             emptyList() 
@@ -140,17 +145,19 @@ class StalkerClient @Inject constructor() {
             val url = "${creds.url}/stalker_portal/api/v1/vod?token=$token"
             val response = URL(url).readText()
             val vods = json.decodeFromString<List<VodData>>(response)
-            vods.map {
-                VodItem(
-                    id = it.id,
-                    title = it.name,
-                    streamUrl = it.cmd,
-                    posterUrl = it.poster,
-                    plot = it.description,
-                    duration = it.duration,
-                    rating = it.rating?.toFloatOrNull(),
-                    releaseDate = it.year
-                )
+            vods.mapNotNull {
+                if (it.cmd.isNotBlank()) {
+                    VodItem(
+                        id = it.id,
+                        title = it.name,
+                        streamUrl = it.cmd,
+                        posterUrl = it.poster,
+                        plot = it.description,
+                        duration = it.duration,
+                        rating = it.rating?.toFloatOrNull(),
+                        releaseDate = it.year
+                    )
+                } else null
             }
         } catch (e: Exception) { 
             emptyList() 
@@ -163,18 +170,18 @@ class StalkerClient @Inject constructor() {
             val url = "${creds.url}/stalker_portal/api/v1/series?token=$token"
             val response = URL(url).readText()
             val seriesList = json.decodeFromString<List<SeriesData>>(response)
-            seriesList.map { series ->
+            seriesList.mapNotNull { series ->
                 val seasons = series.seasons?.mapNotNull { seasonData ->
                     val episodes = seasonData.episodes?.map { episodeData ->
                         Episode(
                             id = episodeData.id,
                             title = episodeData.title,
-                            streamUrl = "${creds.url}/series/${creds.username}/${creds.password}/${episodeData.id}.${episodeData.container_extension}",
+                            streamUrl = episodeData.id,
                             episodeNumber = episodeData.episode_num.toIntOrNull() ?: 0,
                             seasonNumber = seasonData.season_number,
                             plot = episodeData.info?.plot,
                             duration = episodeData.info?.duration,
-                            thumbnailUrl = null
+                            thumbnailUrl = series.poster
                         )
                     } ?: emptyList()
                     
@@ -186,15 +193,17 @@ class StalkerClient @Inject constructor() {
                     } else null
                 } ?: emptyList()
                 
-                Series(
-                    id = series.id,
-                    name = series.name,
-                    coverUrl = series.poster,
-                    plot = series.description,
-                    rating = series.rating?.toFloatOrNull(),
-                    releaseDate = series.year,
-                    seasons = seasons
-                )
+                if (seasons.isNotEmpty() || series.name.isNotBlank()) {
+                    Series(
+                        id = series.id,
+                        name = series.name,
+                        coverUrl = series.poster,
+                        plot = series.description,
+                        rating = series.rating?.toFloatOrNull(),
+                        releaseDate = series.year,
+                        seasons = seasons
+                    )
+                } else null
             }
         } catch (e: Exception) { 
             emptyList() 
