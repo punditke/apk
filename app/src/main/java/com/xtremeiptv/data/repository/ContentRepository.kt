@@ -10,7 +10,10 @@ import com.xtremeiptv.data.network.model.VodItem
 import com.xtremeiptv.data.network.protocol.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +37,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.channelsJson.isNotEmpty()) {
             try {
-                json.decodeFromString<List<Channel>>(cached.channelsJson)
+                json.decodeFromString(cached.channelsJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -47,7 +50,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.moviesJson.isNotEmpty()) {
             try {
-                json.decodeFromString<List<VodItem>>(cached.moviesJson)
+                json.decodeFromString(cached.moviesJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -60,7 +63,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.seriesJson.isNotEmpty()) {
             try {
-                json.decodeFromString<List<Series>>(cached.seriesJson)
+                json.decodeFromString(cached.seriesJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -78,9 +81,9 @@ class ContentRepository @Inject constructor(
             val cached = CachedContent(
                 profileId = profile.id,
                 protocolType = profile.protocolType,
-                channelsJson = json.encodeToString<List<Channel>>(channels),
-                moviesJson = json.encodeToString<List<VodItem>>(movies),
-                seriesJson = json.encodeToString<List<Series>>(series),
+                channelsJson = json.encodeToString(channels),
+                moviesJson = json.encodeToString(movies),
+                seriesJson = json.encodeToString(series),
                 lastUpdated = System.currentTimeMillis()
             )
             cacheDao.insertOrUpdate(cached)
