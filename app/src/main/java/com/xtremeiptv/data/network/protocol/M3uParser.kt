@@ -35,13 +35,10 @@ class M3uParser @Inject constructor() {
                 val infoLine = line
                 val urlLine = if (i + 1 < lines.size) lines[i + 1].trim() else ""
                 
-                val duration = extractDuration(infoLine)
                 val name = extractName(infoLine)
                 val groupTitle = extractGroupTitle(infoLine)
                 val logo = extractLogo(infoLine)
-                val tvgId = extractTvgId(infoLine)
                 
-                // Check if it's a movie or series
                 val isMovie = groupTitle?.contains("MOVIE", ignoreCase = true) == true ||
                               groupTitle?.contains("PELICULA", ignoreCase = true) == true
                 val isSeries = groupTitle?.contains("SERIES", ignoreCase = true) == true ||
@@ -60,7 +57,7 @@ class M3uParser @Inject constructor() {
                             episodeNumber = episodeNum,
                             seasonNumber = seasonNum,
                             plot = null,
-                            duration = if (duration > 0) "${duration}s" else null,
+                            duration = null,
                             thumbnailUrl = logo
                         )
                         seriesMap.getOrPut(seriesTitle) { mutableListOf() }.add(episode)
@@ -73,7 +70,7 @@ class M3uParser @Inject constructor() {
                                 streamUrl = urlLine,
                                 posterUrl = logo,
                                 plot = null,
-                                duration = if (duration > 0) "${duration}s" else null
+                                duration = null
                             )
                         )
                     }
@@ -84,8 +81,7 @@ class M3uParser @Inject constructor() {
                                 name = name,
                                 streamUrl = urlLine,
                                 logoUrl = logo,
-                                groupTitle = groupTitle,
-                                epgId = tvgId
+                                groupTitle = groupTitle
                             )
                         )
                     }
@@ -114,11 +110,6 @@ class M3uParser @Inject constructor() {
         ParseResult(channels, movies, series)
     }
     
-    private fun extractDuration(line: String): Int {
-        val regex = """#EXTINF:(-?\d+)""".toRegex()
-        return regex.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-    }
-    
     private fun extractName(line: String): String {
         val regex = """,([^,]+)$""".toRegex()
         val raw = regex.find(line)?.groupValues?.get(1) ?: "Unknown"
@@ -143,11 +134,6 @@ class M3uParser @Inject constructor() {
     
     private fun extractLogo(line: String): String? {
         val regex = """tvg-logo="([^"]+)"""".toRegex()
-        return regex.find(line)?.groupValues?.get(1)
-    }
-    
-    private fun extractTvgId(line: String): String? {
-        val regex = """tvg-id="([^"]+)"""".toRegex()
         return regex.find(line)?.groupValues?.get(1)
     }
     
