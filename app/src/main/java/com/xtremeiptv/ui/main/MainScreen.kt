@@ -20,7 +20,7 @@ import com.xtremeiptv.utils.Tab
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    onNavigateToPlayer: (String, String, String) -> Unit,
+    onNavigateToPlayer: (String, String, String, String) -> Unit,
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -88,13 +88,19 @@ fun MainScreen(
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(Tab.Live.route) {
-                LiveTabScreen(onPlay = onNavigateToPlayer)
+                LiveTabScreen(
+                    onPlay = onNavigateToPlayer
+                )
             }
             composable(Tab.Movies.route) {
-                MoviesTabScreen(onPlay = onNavigateToPlayer)
+                MoviesTabScreen(
+                    onPlay = onNavigateToPlayer
+                )
             }
             composable(Tab.Series.route) {
-                SeriesTabScreen(onPlay = onNavigateToPlayer)
+                SeriesTabScreen(
+                    onPlay = onNavigateToPlayer
+                )
             }
         }
     }
