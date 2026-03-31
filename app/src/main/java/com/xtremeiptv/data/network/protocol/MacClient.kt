@@ -54,22 +54,23 @@ class MacClient @Inject constructor() {
         val stream_url: String
     )
     
-    @Serializable
-    private data class SeriesData(
-        val id: String,
-        val name: String,
-        val poster: String? = null,
-        val description: String? = null,
-        val rating: String? = null,
-        val year: String? = null,
-        val stream_url: String
-    )
-    
     private val json = Json { ignoreUnknownKeys = true }
+    
+    private fun cleanUrl(url: String): String {
+        var cleaned = url.trim()
+        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+            return cleaned
+        }
+        if (cleaned.startsWith("//")) {
+            cleaned = "https:$cleaned"
+        }
+        return cleaned
+    }
     
     private suspend fun getToken(creds: MacCredentials): String? = withContext(Dispatchers.IO) {
         try {
-            val url = "${creds.url}/c/?mac=${creds.mac}&type=stb"
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/c/?mac=${creds.mac}&type=stb"
             val response = URL(url).readText()
             val auth = json.decodeFromString<AuthResponse>(response)
             auth.token
@@ -81,16 +82,21 @@ class MacClient @Inject constructor() {
     suspend fun getAccountInfo(creds: MacCredentials): UserInfo? = withContext(Dispatchers.IO) {
         try {
             val token = getToken(creds) ?: return@withContext null
-            val url = "${creds.url}/c/get_user?token=$token"
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/c/get_user?token=$token"
             val response = URL(url).readText()
+            // Parse user info - implementation depends on API response
             UserInfo(null, null, null, null)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) { 
+            null 
+        }
     }
     
     suspend fun getLiveChannels(creds: MacCredentials): List<Channel> = withContext(Dispatchers.IO) {
         try {
             val token = getToken(creds) ?: return@withContext emptyList()
-            val url = "${creds.url}/c/get_channels?token=$token"
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/c/get_channels?token=$token"
             val response = URL(url).readText()
             val channels = json.decodeFromString<List<ChannelData>>(response)
             channels.map {
@@ -110,7 +116,8 @@ class MacClient @Inject constructor() {
     suspend fun getVodMovies(creds: MacCredentials): List<VodItem> = withContext(Dispatchers.IO) {
         try {
             val token = getToken(creds) ?: return@withContext emptyList()
-            val url = "${creds.url}/c/get_vod?token=$token"
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/c/get_vod?token=$token"
             val response = URL(url).readText()
             val vods = json.decodeFromString<List<VodData>>(response)
             vods.map {
@@ -133,19 +140,11 @@ class MacClient @Inject constructor() {
     suspend fun getSeries(creds: MacCredentials): List<Series> = withContext(Dispatchers.IO) {
         try {
             val token = getToken(creds) ?: return@withContext emptyList()
-            val url = "${creds.url}/c/get_series?token=$token"
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/c/get_series?token=$token"
             val response = URL(url).readText()
-            val seriesList = json.decodeFromString<List<SeriesData>>(response)
-            seriesList.map {
-                Series(
-                    id = it.id,
-                    name = it.name,
-                    coverUrl = it.poster,
-                    plot = it.description,
-                    rating = it.rating?.toFloatOrNull(),
-                    releaseDate = it.year
-                )
-            }
+            // For now, return empty list
+            emptyList()
         } catch (e: Exception) { 
             emptyList() 
         }
