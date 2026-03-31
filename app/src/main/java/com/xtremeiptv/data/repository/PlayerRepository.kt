@@ -51,20 +51,16 @@ class PlayerRepository @Inject constructor(
     private fun initPlayer() {
         try {
             if (exoPlayer == null) {
-                Log.d(TAG, "Initializing ExoPlayer")
                 exoPlayer = ExoPlayer.Builder(context).build()
                 exoPlayer?.addListener(playerListener)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize player", e)
             _error.value = "Player init failed: ${e.message}"
         }
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
         try {
-            Log.d(TAG, "Loading stream: $url")
-            
             if (exoPlayer == null) {
                 initPlayer()
             }
@@ -91,7 +87,6 @@ class PlayerRepository @Inject constructor(
                 play()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load stream", e)
             _error.value = "Load failed: ${e.message}"
         }
     }
@@ -100,7 +95,6 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.play()
         } catch (e: Exception) {
-            Log.e(TAG, "Play failed", e)
             _error.value = "Play failed: ${e.message}"
         }
     }
@@ -109,7 +103,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.pause()
         } catch (e: Exception) {
-            Log.e(TAG, "Pause failed", e)
+            // Ignore pause errors
         }
     }
     
@@ -117,7 +111,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.seekTo(position)
         } catch (e: Exception) {
-            Log.e(TAG, "Seek failed", e)
+            // Ignore seek errors
         }
     }
     
@@ -126,18 +120,19 @@ class PlayerRepository @Inject constructor(
             exoPlayer?.setPlaybackSpeed(speed)
             _playbackSpeed.value = speed
         } catch (e: Exception) {
-            Log.e(TAG, "Set speed failed", e)
+            // Ignore speed errors
         }
     }
     
     fun release() {
         try {
-            Log.d(TAG, "Releasing player")
             exoPlayer?.release()
             exoPlayer = null
             _error.value = null
+            _isPlaying.value = false
+            _buffering.value = false
         } catch (e: Exception) {
-            Log.e(TAG, "Release failed", e)
+            // Ignore release errors
         }
     }
     
@@ -147,19 +142,16 @@ class PlayerRepository @Inject constructor(
                 Player.STATE_READY -> {
                     _isPlaying.value = exoPlayer?.isPlaying == true
                     _buffering.value = false
-                    Log.d(TAG, "Player ready, isPlaying: ${exoPlayer?.isPlaying}")
+                    _error.value = null
                 }
                 Player.STATE_BUFFERING -> {
                     _buffering.value = true
-                    Log.d(TAG, "Buffering")
                 }
                 Player.STATE_ENDED -> {
                     _isPlaying.value = false
-                    Log.d(TAG, "Playback ended")
                 }
                 Player.STATE_IDLE -> {
                     _isPlaying.value = false
-                    Log.d(TAG, "Player idle")
                 }
             }
         }
@@ -170,7 +162,6 @@ class PlayerRepository @Inject constructor(
         }
         
         override fun onPlayerError(error: PlaybackException) {
-            Log.e(TAG, "Player error", error)
             _error.value = error.message ?: "Playback error"
             _buffering.value = false
         }
