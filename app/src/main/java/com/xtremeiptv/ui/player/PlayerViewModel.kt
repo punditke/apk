@@ -18,6 +18,7 @@ class PlayerViewModel @Inject constructor(
     val duration = playerRepository.duration
     val playbackSpeed = playerRepository.playbackSpeed
     val buffering = playerRepository.buffering
+    val isReady = playerRepository.isReady
     
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -25,19 +26,30 @@ class PlayerViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
+    init {
+        playerRepository.initializePlayer()
+    }
+    
     fun loadStream(url: String, resumePosition: Long = 0L) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            playerRepository.loadStream(url, resumePosition)
             
+            // Reset error listener
             playerRepository.error.collect { err ->
                 _error.value = err
-                _isLoading.value = false
+                if (err != null) {
+                    _isLoading.value = false
+                }
             }
             
+            playerRepository.loadStream(url, resumePosition)
+            
+            // Set loading false when playback starts
             playerRepository.isPlaying.collect { playing ->
-                if (playing) _isLoading.value = false
+                if (playing) {
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -46,7 +58,15 @@ class PlayerViewModel @Inject constructor(
     fun pause() = playerRepository.pause()
     fun seekTo(position: Long) = playerRepository.seekTo(position)
     fun setPlaybackSpeed(speed: Float) = playerRepository.setPlaybackSpeed(speed)
-    fun release() = playerRepository.release()
+    
+    fun release() {
+        playerRepository.release()
+    }
     
     fun getPlayer() = playerRepository.getPlayer()
+    
+    override fun onCleared() {
+        super.onCleared()
+        release()
+    }
 }
