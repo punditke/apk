@@ -1,8 +1,11 @@
 package com.xtremeiptv.ui.search
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -11,15 +14,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.xtremeiptv.data.network.model.Channel
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
-    onPlay: (String, String, String) -> Unit,
+    onPlay: (String, String, String, String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     var query by remember { mutableStateOf("") }
@@ -78,7 +78,7 @@ fun SearchScreen(
                     SearchResultItem(
                         title = channel.name,
                         subtitle = "Channel",
-                        onClick = { onPlay(channel.id, "live", channel.name) }
+                        onClick = { onPlay(channel.id, "live", channel.name, channel.streamUrl) }
                     )
                 }
             }
@@ -91,7 +91,7 @@ fun SearchScreen(
                     SearchResultItem(
                         title = movie.title,
                         subtitle = "Movie",
-                        onClick = { onPlay(movie.id, "movie", movie.title) }
+                        onClick = { onPlay(movie.id, "movie", movie.title, movie.streamUrl) }
                     )
                 }
             }
@@ -104,7 +104,7 @@ fun SearchScreen(
                     SearchResultItem(
                         title = seriesItem.name,
                         subtitle = "Series",
-                        onClick = { onPlay(seriesItem.id, "series", seriesItem.name) }
+                        onClick = { onPlay(seriesItem.id, "series", seriesItem.name, seriesItem.coverUrl ?: "") }
                     )
                 }
             }
