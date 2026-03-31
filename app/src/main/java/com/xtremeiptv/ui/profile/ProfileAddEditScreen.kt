@@ -106,6 +106,7 @@ fun ProfileAddEditScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Profile Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -114,11 +115,12 @@ fun ProfileAddEditScreen(
                 singleLine = true
             )
             
+            // Protocol Selection Dropdown
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = it }
             ) {
-                OutlinedTextField(
+                TextField(
                     value = when (protocolType) {
                         "stalker" -> "Stalker Portal (URL + Username + Password + MAC)"
                         "mac" -> "MAC Portal (URL + MAC)"
@@ -138,23 +140,50 @@ fun ProfileAddEditScreen(
                 ) {
                     DropdownMenuItem(
                         text = { Text("Stalker Portal (URL + Username + Password + MAC)") },
-                        onClick = { protocolType = "stalker"; expanded = false }
+                        onClick = {
+                            protocolType = "stalker"
+                            expanded = false
+                            // Clear irrelevant fields when switching
+                            if (protocolType != "stalker") {
+                                macAddress = ""
+                            }
+                            if (protocolType != "stalker" && protocolType != "xtream") {
+                                username = ""
+                                password = ""
+                            }
+                        }
                     )
                     DropdownMenuItem(
                         text = { Text("MAC Portal (URL + MAC)") },
-                        onClick = { protocolType = "mac"; expanded = false }
+                        onClick = {
+                            protocolType = "mac"
+                            expanded = false
+                            username = ""
+                            password = ""
+                        }
                     )
                     DropdownMenuItem(
                         text = { Text("XTream Codes (URL + Username + Password)") },
-                        onClick = { protocolType = "xtream"; expanded = false }
+                        onClick = {
+                            protocolType = "xtream"
+                            expanded = false
+                            macAddress = ""
+                        }
                     )
                     DropdownMenuItem(
                         text = { Text("M3U (URL or File Upload)") },
-                        onClick = { protocolType = "m3u"; expanded = false }
+                        onClick = {
+                            protocolType = "m3u"
+                            expanded = false
+                            username = ""
+                            password = ""
+                            macAddress = ""
+                        }
                     )
                 }
             }
             
+            // Server URL (all protocols except M3U with file)
             if (!(protocolType == "m3u" && m3uFilePath != null)) {
                 OutlinedTextField(
                     value = serverUrl,
@@ -166,12 +195,15 @@ fun ProfileAddEditScreen(
                 )
             }
             
+            // M3U File Upload
             if (protocolType == "m3u") {
                 if (m3uFilePath == null) {
                     Button(
                         onClick = { filePickerLauncher.launch("*/*") },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Select M3U File") }
+                    ) {
+                        Text("Select M3U File")
+                    }
                     OutlinedTextField(
                         value = serverUrl,
                         onValueChange = { serverUrl = it },
@@ -187,7 +219,10 @@ fun ProfileAddEditScreen(
                         modifier = Modifier.fillMaxWidth(),
                         readOnly = true,
                         trailingIcon = {
-                            IconButton(onClick = { m3uFilePath = null; m3uFileName = null }) {
+                            IconButton(onClick = {
+                                m3uFilePath = null
+                                m3uFileName = null
+                            }) {
                                 Text("X")
                             }
                         }
@@ -195,6 +230,7 @@ fun ProfileAddEditScreen(
                 }
             }
             
+            // Username (Stalker and XTream)
             if (protocolType == "stalker" || protocolType == "xtream") {
                 OutlinedTextField(
                     value = username,
@@ -203,6 +239,10 @@ fun ProfileAddEditScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+            }
+            
+            // Password (Stalker and XTream)
+            if (protocolType == "stalker" || protocolType == "xtream") {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -212,6 +252,7 @@ fun ProfileAddEditScreen(
                 )
             }
             
+            // MAC Address (Stalker and MAC)
             if (protocolType == "stalker" || protocolType == "mac") {
                 OutlinedTextField(
                     value = macAddress,
@@ -223,10 +264,14 @@ fun ProfileAddEditScreen(
                 )
             }
             
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            // Error message
+            error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
             
             Spacer(modifier = Modifier.weight(1f))
             
+            // Save Button
             Button(
                 onClick = {
                     val finalServerUrl = when {
@@ -258,12 +303,16 @@ fun ProfileAddEditScreen(
                     (protocolType == "mac" && serverUrl.isNotBlank() && macAddress.isNotBlank())
                 )
             ) {
-                if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                else Text("Save")
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    Text("Save")
+                }
             }
         }
     }
     
+    // Result Dialog
     if (showResultDialog) {
         AlertDialog(
             onDismissRequest = { showResultDialog = false },
@@ -280,7 +329,9 @@ fun ProfileAddEditScreen(
                 }
             },
             confirmButton = {
-                Button(onClick = { showResultDialog = false }) { Text("OK") }
+                Button(onClick = { showResultDialog = false }) {
+                    Text("OK")
+                }
             }
         )
     }
