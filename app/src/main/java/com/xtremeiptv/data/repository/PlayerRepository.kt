@@ -15,10 +15,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PlayerRepository @Inject constructor() {
+class PlayerRepository @Inject constructor(
+    private val context: Context
+) {
     
     private var exoPlayer: ExoPlayer? = null
-    private var appContext: Context? = null
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -38,8 +39,11 @@ class PlayerRepository @Inject constructor() {
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
     
-    fun initializePlayer(context: Context) {
-        appContext = context.applicationContext
+    init {
+        initializePlayer()
+    }
+    
+    private fun initializePlayer() {
         if (exoPlayer == null) {
             exoPlayer = ExoPlayer.Builder(context)
                 .build()
@@ -50,16 +54,8 @@ class PlayerRepository @Inject constructor() {
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
-        val context = appContext
-        if (context == null) {
-            _error.value = "Player not initialized"
-            return
-        }
-        
         try {
-            if (exoPlayer == null) {
-                initializePlayer(context)
-            }
+            initializePlayer()
             
             val dataSourceFactory = DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
