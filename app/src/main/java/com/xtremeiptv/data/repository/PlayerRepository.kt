@@ -10,10 +10,17 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.datasource.cache.CacheDataSink
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,10 +31,12 @@ class PlayerRepository @Inject constructor(
     
     companion object {
         private const val TAG = "PlayerRepository"
+        private const val CACHE_SIZE = 200 * 1024 * 1024L // 200MB cache
     }
     
     private var exoPlayer: ExoPlayer? = null
     private var currentUrl: String? = null
+    private var cache: SimpleCache? = null
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -48,18 +57,59 @@ class PlayerRepository @Inject constructor(
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
     
     init {
+        initCache()
         initPlayer()
+    }
+    
+    private fun initCache() {
+        try {
+            val cacheDir = File(context.cacheDir, "media_cache")
+            val evictor = LeastRecentlyUsedCacheEvictor(CACHE_SIZE)
+            cache = SimpleCache(cacheDir, evictor)
+            Log.d(TAG, "Cache initialized at: ${cacheDir.absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Cache init failed", e)
+        }
     }
     
     private fun initPlayer() {
         try {
             if (exoPlayer == null) {
                 Log.d(TAG, "Initializing ExoPlayer")
-                exoPlayer = ExoPlayer.Builder(context).build()
-                exoPlayer?.addListener(playerListener)
+                
+                // Create data source factory for network streams
+                val dataSourceFactory = DefaultHttpDataSource.Factory()
+                    .setAllowCrossProtocolRedirects(true)
+                    .setConnectTimeoutMs(30000)
+                    .setReadTimeoutMs(30000)
+                    .setUserAgent("XtremeIPTV/2.0 (Android; ExoPlayer)")
+                
+                // Create cache data source
+                val cacheDataSourceFactory = cache?.let {
+                    CacheDataSource.Factory()
+                        .setCache(it)
+                        .setUpstreamDataSourceFactory(dataSourceFactory)
+                        .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                } ?: dataSourceFactory
+                
+                // Create media source factory
+                val mediaSourceFactory = DefaultMediaSourceFactory(cacheDataSourceFactory)
+                    .setLiveTargetOffsetMs(5000)
+                    .setLiveMinLoadableRetryCount(3)
+                
+                exoPlayer = ExoPlayer.Builder(context)
+                    .setMediaSourceFactory(mediaSourceFactory)
+                    .setHandleAudioBecomingNoisy(true)
+                    .build()
+                    .apply {
+                        addListener(playerListener)
+                        videoScalingMode = androidx.media3.common.C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+                    }
+                
+                Log.d(TAG, "ExoPlayer initialized successfully")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Init failed", e)
+            Log.e(TAG, "Player init failed", e)
             _error.value = "Player init failed: ${e.message}"
         }
     }
@@ -86,27 +136,28 @@ class PlayerRepository @Inject constructor(
             
             val dataSourceFactory = DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(15000)
-                .setReadTimeoutMs(15000)
-                .setUserAgent("XtremeIPTV/1.0 (Android)")
+                .setConnectTimeoutMs(30000)
+                .setReadTimeoutMs(30000)
+                .setUserAgent("XtremeIPTV/2.0 (Android; ExoPlayer)")
             
             val mediaItem = MediaItem.fromUri(Uri.parse(url))
             val lowerUrl = url.lowercase()
             
             val mediaSource = when {
-                lowerUrl.contains(".m3u8") || lowerUrl.contains("m3u8") || lowerUrl.contains("hls") -> {
-                    Log.d(TAG, "Using HLS MediaSource")
+                lowerUrl.contains(".m3u8") || lowerUrl.contains("m3u8") || 
+                lowerUrl.contains("hls") || lowerUrl.contains(".m3u") -> {
+                    Log.d(TAG, "Creating HLS MediaSource")
                     HlsMediaSource.Factory(dataSourceFactory)
                         .setAllowChunklessPreparation(true)
                         .createMediaSource(mediaItem)
                 }
                 lowerUrl.contains(".mpd") || lowerUrl.contains("dash") -> {
-                    Log.d(TAG, "Using DASH MediaSource")
+                    Log.d(TAG, "Creating DASH MediaSource")
                     DashMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(mediaItem)
                 }
                 else -> {
-                    Log.d(TAG, "Using Progressive MediaSource (MP4/TS)")
+                    Log.d(TAG, "Creating Progressive MediaSource (MP4/TS)")
                     ProgressiveMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(mediaItem)
                 }
@@ -115,7 +166,9 @@ class PlayerRepository @Inject constructor(
             exoPlayer?.apply {
                 setMediaSource(mediaSource)
                 prepare()
-                seekTo(resumePosition)
+                if (resumePosition > 0) {
+                    seekTo(resumePosition)
+                }
                 play()
             }
         } catch (e: Exception) {
@@ -144,7 +197,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.seekTo(position)
         } catch (e: Exception) {
-            // Ignore
+            Log.e(TAG, "Seek failed", e)
         }
     }
     
@@ -153,7 +206,7 @@ class PlayerRepository @Inject constructor(
             exoPlayer?.setPlaybackSpeed(speed)
             _playbackSpeed.value = speed
         } catch (e: Exception) {
-            // Ignore
+            Log.e(TAG, "Set speed failed", e)
         }
     }
     
@@ -164,9 +217,15 @@ class PlayerRepository @Inject constructor(
             exoPlayer = null
             currentUrl = null
             _error.value = null
+            _isPlaying.value = false
+            _buffering.value = false
         } catch (e: Exception) {
             Log.e(TAG, "Release failed", e)
         }
+    }
+    
+    fun releasePlayer() {
+        release()
     }
     
     private val playerListener = object : Player.Listener {
@@ -180,7 +239,7 @@ class PlayerRepository @Inject constructor(
                 }
                 Player.STATE_BUFFERING -> {
                     _buffering.value = true
-                    Log.d(TAG, "Buffering")
+                    Log.d(TAG, "Buffering...")
                 }
                 Player.STATE_ENDED -> {
                     _isPlaying.value = false
@@ -200,7 +259,24 @@ class PlayerRepository @Inject constructor(
         
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "Player error", error)
-            _error.value = error.message ?: "Playback error"
+            _error.value = when {
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> 
+                    "Network connection failed. Check your internet."
+                error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ->
+                    "Stream not found. URL may be invalid."
+                error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ->
+                    "Video format not supported on this device."
+                else -> error.message ?: "Playback error. Try again."
+            }
+            _buffering.value = false
+        }
+        
+        override fun onVideoSizeChanged(width: Int, height: Int, unappliedRotationDegrees: Int, pixelWidthHeightRatio: Float) {
+            Log.d(TAG, "Video size changed: ${width}x$height")
+        }
+        
+        override fun onRenderedFirstFrame() {
+            Log.d(TAG, "First frame rendered")
             _buffering.value = false
         }
     }
