@@ -3,7 +3,7 @@ package com.xtremeiptv.ui.series
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.network.model.Series
-import com.xtremeiptv.data.network.protocol.*
+import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -13,10 +13,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SeriesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val xtreamClient: XtreamClient,
-    private val stalkerClient: StalkerClient,
-    private val macClient: MacClient,
-    private val m3uLoader: M3uLoader
+    private val contentRepository: ContentRepository
 ) : ViewModel() {
     
     private val _series = MutableStateFlow<List<Series>>(emptyList())
@@ -28,11 +25,13 @@ class SeriesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
+    private var currentProfileId: String? = null
+    
     init {
         loadSeries()
     }
     
-    fun loadSeries() {
+    fun loadSeries(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -45,38 +44,18 @@ class SeriesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val result = when (profile.protocolType) {
-                    "xtream" -> {
-                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
-                        xtreamClient.getSeries(creds)
-                    }
-                    "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(
-                            profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
-                        )
-                        stalkerClient.getSeries(creds)
-                    }
-                    "mac" -> {
-                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
-                        macClient.getSeries(creds)
-                    }
-                    "m3u" -> {
-                        val m3uResult = if (profile.serverUrl.startsWith("http")) {
-                            m3uLoader.loadFromUrl(profile.serverUrl)
-                        } else {
-                            m3uLoader.loadFromFile(profile.serverUrl)
-                        }
-                        m3uResult.series
-                    }
-                    else -> emptyList()
-                }
+                currentProfileId = profile.id
+                val result = contentRepository.loadSeries(profile, useCache = !forceRefresh)
                 
                 _series.value = result
-                if (result.isEmpty() && _error.value == null) {
+                
+                if (result.isEmpty() && !forceRefresh) {
+                    loadSeries(forceRefresh = true)
+                } else if (result.isEmpty()) {
                     _error.value = "No series found"
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = e.message ?: "Failed to load series"
             } finally {
                 _isLoading.value = false
             }
@@ -84,6 +63,10 @@ class SeriesViewModel @Inject constructor(
     }
     
     fun refresh() {
-        loadSeries()
+        loadSeries(forceRefresh = true)
+    }
+    
+    fun clearError() {
+        _error.value = null
     }
 }
