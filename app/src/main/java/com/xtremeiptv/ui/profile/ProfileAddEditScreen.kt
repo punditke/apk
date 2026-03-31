@@ -32,7 +32,6 @@ fun ProfileAddEditScreen(
     val existingProfile by viewModel.getProfile(profileId).collectAsState(initial = null)
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val validationResult by viewModel.validationResult.collectAsState()
     
     var name by remember { mutableStateOf("") }
     var protocolType by remember { mutableStateOf("stalker") }
@@ -40,7 +39,6 @@ fun ProfileAddEditScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var macAddress by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
     var m3uFilePath by remember { mutableStateOf<String?>(null) }
     var m3uFileName by remember { mutableStateOf<String?>(null) }
     var showResultDialog by remember { mutableStateOf(false) }
@@ -115,73 +113,58 @@ fun ProfileAddEditScreen(
                 singleLine = true
             )
             
-            // Protocol Selection Dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
-            ) {
-                TextField(
-                    value = when (protocolType) {
-                        "stalker" -> "Stalker Portal (URL + Username + Password + MAC)"
-                        "mac" -> "MAC Portal (URL + MAC)"
-                        "xtream" -> "XTream Codes (URL + Username + Password)"
-                        "m3u" -> "M3U (URL or File Upload)"
-                        else -> "Select Protocol"
-                    },
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Protocol") }
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Stalker Portal (URL + Username + Password + MAC)") },
+            // Protocol Selection - Radio Buttons
+            Text("Protocol", style = MaterialTheme.typography.titleSmall)
+            
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = protocolType == "stalker",
                         onClick = {
                             protocolType = "stalker"
-                            expanded = false
-                            // Clear irrelevant fields when switching
-                            if (protocolType != "stalker") {
-                                macAddress = ""
-                            }
-                            if (protocolType != "stalker" && protocolType != "xtream") {
-                                username = ""
-                                password = ""
-                            }
+                            username = ""
+                            password = ""
+                            macAddress = ""
                         }
                     )
-                    DropdownMenuItem(
-                        text = { Text("MAC Portal (URL + MAC)") },
+                    Text("Stalker Portal (URL + Username + Password + MAC)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = protocolType == "mac",
                         onClick = {
                             protocolType = "mac"
-                            expanded = false
                             username = ""
                             password = ""
                         }
                     )
-                    DropdownMenuItem(
-                        text = { Text("XTream Codes (URL + Username + Password)") },
+                    Text("MAC Portal (URL + MAC)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = protocolType == "xtream",
                         onClick = {
                             protocolType = "xtream"
-                            expanded = false
                             macAddress = ""
                         }
                     )
-                    DropdownMenuItem(
-                        text = { Text("M3U (URL or File Upload)") },
+                    Text("XTream Codes (URL + Username + Password)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = protocolType == "m3u",
                         onClick = {
                             protocolType = "m3u"
-                            expanded = false
                             username = ""
                             password = ""
                             macAddress = ""
                         }
                     )
+                    Text("M3U (URL or File Upload)")
                 }
             }
+            
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Server URL (all protocols except M3U with file)
             if (!(protocolType == "m3u" && m3uFilePath != null)) {
@@ -223,7 +206,7 @@ fun ProfileAddEditScreen(
                                 m3uFilePath = null
                                 m3uFileName = null
                             }) {
-                                Text("X")
+                                Text("✕")
                             }
                         }
                     )
