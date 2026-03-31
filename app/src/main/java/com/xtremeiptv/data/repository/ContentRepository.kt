@@ -34,7 +34,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.channelsJson.isNotEmpty()) {
             try {
-                json.decodeFromString(cached.channelsJson)
+                json.decodeFromString<List<Channel>>(cached.channelsJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -47,7 +47,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.moviesJson.isNotEmpty()) {
             try {
-                json.decodeFromString(cached.moviesJson)
+                json.decodeFromString<List<VodItem>>(cached.moviesJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -60,7 +60,7 @@ class ContentRepository @Inject constructor(
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.seriesJson.isNotEmpty()) {
             try {
-                json.decodeFromString(cached.seriesJson)
+                json.decodeFromString<List<Series>>(cached.seriesJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -78,9 +78,9 @@ class ContentRepository @Inject constructor(
             val cached = CachedContent(
                 profileId = profile.id,
                 protocolType = profile.protocolType,
-                channelsJson = json.encodeToString(channels),
-                moviesJson = json.encodeToString(movies),
-                seriesJson = json.encodeToString(series),
+                channelsJson = json.encodeToString<List<Channel>>(channels),
+                moviesJson = json.encodeToString<List<VodItem>>(movies),
+                seriesJson = json.encodeToString<List<Series>>(series),
                 lastUpdated = System.currentTimeMillis()
             )
             cacheDao.insertOrUpdate(cached)
