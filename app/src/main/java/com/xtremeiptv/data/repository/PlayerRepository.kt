@@ -8,6 +8,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,7 @@ class PlayerRepository @Inject constructor(
     }
     
     private var exoPlayer: ExoPlayer? = null
+    private var currentUrl: String? = null
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -51,16 +54,20 @@ class PlayerRepository @Inject constructor(
     private fun initPlayer() {
         try {
             if (exoPlayer == null) {
+                Log.d(TAG, "Initializing ExoPlayer")
                 exoPlayer = ExoPlayer.Builder(context).build()
                 exoPlayer?.addListener(playerListener)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Init failed", e)
             _error.value = "Player init failed: ${e.message}"
         }
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
         try {
+            Log.d(TAG, "Loading stream: $url")
+            
             if (exoPlayer == null) {
                 initPlayer()
             }
@@ -70,15 +77,31 @@ class PlayerRepository @Inject constructor(
                 return
             }
             
+            currentUrl = url
+            
             val dataSourceFactory = DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
                 .setConnectTimeoutMs(15000)
                 .setReadTimeoutMs(15000)
-                .setUserAgent("XtremeIPTV/1.0")
+                .setUserAgent("XtremeIPTV/1.0 (Android)")
             
             val mediaItem = MediaItem.fromUri(Uri.parse(url))
-            val mediaSource = HlsMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(mediaItem)
+            
+            // Detect stream type from URL
+            val mediaSource = when {
+                url.contains(".m3u8") || url.contains("hls") -> {
+                    Log.d(TAG, "Using HLS MediaSource")
+                    HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                }
+                url.contains(".mpd") || url.contains("dash") -> {
+                    Log.d(TAG, "Using DASH MediaSource")
+                    DashMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                }
+                else -> {
+                    Log.d(TAG, "Using Progressive MediaSource (MP4/TS)")
+                    ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                }
+            }
             
             exoPlayer?.apply {
                 setMediaSource(mediaSource)
@@ -87,6 +110,7 @@ class PlayerRepository @Inject constructor(
                 play()
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Load failed", e)
             _error.value = "Load failed: ${e.message}"
         }
     }
@@ -95,7 +119,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.play()
         } catch (e: Exception) {
-            _error.value = "Play failed: ${e.message}"
+            Log.e(TAG, "Play failed", e)
         }
     }
     
@@ -103,7 +127,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.pause()
         } catch (e: Exception) {
-            // Ignore pause errors
+            // Ignore
         }
     }
     
@@ -111,7 +135,7 @@ class PlayerRepository @Inject constructor(
         try {
             exoPlayer?.seekTo(position)
         } catch (e: Exception) {
-            // Ignore seek errors
+            // Ignore
         }
     }
     
@@ -120,19 +144,19 @@ class PlayerRepository @Inject constructor(
             exoPlayer?.setPlaybackSpeed(speed)
             _playbackSpeed.value = speed
         } catch (e: Exception) {
-            // Ignore speed errors
+            // Ignore
         }
     }
     
     fun release() {
         try {
+            Log.d(TAG, "Releasing player")
             exoPlayer?.release()
             exoPlayer = null
+            currentUrl = null
             _error.value = null
-            _isPlaying.value = false
-            _buffering.value = false
         } catch (e: Exception) {
-            // Ignore release errors
+            Log.e(TAG, "Release failed", e)
         }
     }
     
@@ -142,16 +166,19 @@ class PlayerRepository @Inject constructor(
                 Player.STATE_READY -> {
                     _isPlaying.value = exoPlayer?.isPlaying == true
                     _buffering.value = false
-                    _error.value = null
+                    Log.d(TAG, "Player ready, isPlaying: ${exoPlayer?.isPlaying}")
                 }
                 Player.STATE_BUFFERING -> {
                     _buffering.value = true
+                    Log.d(TAG, "Buffering")
                 }
                 Player.STATE_ENDED -> {
                     _isPlaying.value = false
+                    Log.d(TAG, "Playback ended")
                 }
                 Player.STATE_IDLE -> {
                     _isPlaying.value = false
+                    Log.d(TAG, "Player idle")
                 }
             }
         }
@@ -162,6 +189,7 @@ class PlayerRepository @Inject constructor(
         }
         
         override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "Player error", error)
             _error.value = error.message ?: "Playback error"
             _buffering.value = false
         }
