@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,6 +23,7 @@ import com.xtremeiptv.ui.player.PlayerActivity
 
 @Composable
 fun SeriesTabScreen(
+    onPlay: (String, String, String, String) -> Unit,
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -60,7 +63,7 @@ fun SeriesTabScreen(
                     items(seriesList) { series ->
                         SeriesItem(
                             series = series,
-                            context = context
+                            onPlay = onPlay
                         )
                     }
                 }
@@ -70,7 +73,7 @@ fun SeriesTabScreen(
 }
 
 @Composable
-fun SeriesItem(series: Series, context: Context) {
+fun SeriesItem(series: Series, onPlay: (String, String, String, String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     
     Card(
@@ -115,9 +118,9 @@ fun SeriesItem(series: Series, context: Context) {
                     }
                 }
                 Icon(
-                    if (expanded) Icons.Default.KeyboardArrowRight else Icons.Default.KeyboardArrowRight,
+                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
                     contentDescription = if (expanded) "Collapse" else "Expand",
-                    modifier = Modifier.rotate(if (expanded) 90f else 0f)
+                    modifier = Modifier.rotate(if (expanded) 0f else 0f)
                 )
             }
             
@@ -133,17 +136,7 @@ fun SeriesItem(series: Series, context: Context) {
                         EpisodeItem(
                             episode = episode,
                             seriesName = series.name,
-                            onClick = {
-                                PlayerActivity.newIntent(
-                                    context,
-                                    episode.id,
-                                    "episode",
-                                    "${series.name} - S${episode.seasonNumber}E${episode.episodeNumber}: ${episode.title}",
-                                    episode.streamUrl
-                                ).let { intent ->
-                                    context.startActivity(intent)
-                                }
-                            }
+                            onPlay = onPlay
                         )
                     }
                 }
@@ -153,12 +146,19 @@ fun SeriesItem(series: Series, context: Context) {
 }
 
 @Composable
-fun EpisodeItem(episode: Episode, seriesName: String, onClick: () -> Unit) {
+fun EpisodeItem(episode: Episode, seriesName: String, onPlay: (String, String, String, String) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
-            .clickable { onClick() },
+            .clickable {
+                onPlay(
+                    episode.id,
+                    "episode",
+                    "${seriesName} - S${episode.seasonNumber}E${episode.episodeNumber}: ${episode.title}",
+                    episode.streamUrl
+                )
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
