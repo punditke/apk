@@ -61,8 +61,8 @@ class MainActivity : ComponentActivity() {
                         
                         composable(Screen.Main.route) {
                             MainScreen(
-                                onNavigateToPlayer = { contentId, contentType, title ->
-                                    startActivity(PlayerActivity.newIntent(this@MainActivity, contentId, contentType, title))
+                                onNavigateToPlayer = { contentId, contentType, title, streamUrl ->
+                                    startActivity(PlayerActivity.newIntent(this@MainActivity, contentId, contentType, title, streamUrl))
                                 },
                                 onNavigateToAccountInfo = {
                                     navController.navigate(Screen.AccountInfo.route)
@@ -88,8 +88,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Search.route) {
                             SearchScreen(
                                 onBack = { navController.popBackStack() },
-                                onPlay = { contentId, contentType, title ->
-                                    startActivity(PlayerActivity.newIntent(this@MainActivity, contentId, contentType, title))
+                                onPlay = { contentId, contentType, title, streamUrl ->
+                                    startActivity(PlayerActivity.newIntent(this@MainActivity, contentId, contentType, title, streamUrl))
                                 }
                             )
                         }
