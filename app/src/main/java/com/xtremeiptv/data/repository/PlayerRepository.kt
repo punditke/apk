@@ -39,23 +39,34 @@ class PlayerRepository @Inject constructor(
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
     
-    init {
-        initializePlayer()
-    }
+    private val _isReady = MutableStateFlow(false)
+    val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
     
-    private fun initializePlayer() {
+    fun initializePlayer() {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context)
-                .build()
-                .apply {
-                    addListener(playerListener)
-                }
+            try {
+                exoPlayer = ExoPlayer.Builder(context)
+                    .build()
+                    .apply {
+                        addListener(playerListener)
+                    }
+                _isReady.value = true
+            } catch (e: Exception) {
+                _error.value = "Player initialization failed: ${e.message}"
+            }
         }
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
         try {
-            initializePlayer()
+            if (exoPlayer == null) {
+                initializePlayer()
+            }
+            
+            if (exoPlayer == null) {
+                _error.value = "Player not initialized"
+                return
+            }
             
             val dataSourceFactory = DefaultHttpDataSource.Factory()
                 .setAllowCrossProtocolRedirects(true)
@@ -94,14 +105,35 @@ class PlayerRepository @Inject constructor(
     }
     
     fun release() {
-        exoPlayer?.release()
-        exoPlayer = null
+        try {
+            exoPlayer?.release()
+            exoPlayer = null
+            _isReady.value = false
+            _isPlaying.value = false
+            _buffering.value = false
+            _error.value = null
+        } catch (e: Exception) {
+            // Ignore release errors
+        }
     }
     
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
-            _isPlaying.value = playbackState == Player.STATE_READY && exoPlayer?.isPlaying == true
-            _buffering.value = playbackState == Player.STATE_BUFFERING
+            when (playbackState) {
+                Player.STATE_READY -> {
+                    _isPlaying.value = exoPlayer?.isPlaying == true
+                    _buffering.value = false
+                }
+                Player.STATE_BUFFERING -> {
+                    _buffering.value = true
+                }
+                Player.STATE_ENDED -> {
+                    _isPlaying.value = false
+                }
+                Player.STATE_IDLE -> {
+                    _isPlaying.value = false
+                }
+            }
         }
         
         override fun onPositionDiscontinuity(reason: Int) {
@@ -110,7 +142,8 @@ class PlayerRepository @Inject constructor(
         }
         
         override fun onPlayerError(error: PlaybackException) {
-            _error.value = error.message
+            _error.value = error.message ?: "Playback error"
+            _buffering.value = false
         }
     }
     
