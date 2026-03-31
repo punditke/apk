@@ -39,6 +39,9 @@ class AccountViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+    
     init {
         loadAccountInfo()
     }
@@ -46,6 +49,7 @@ class AccountViewModel @Inject constructor(
     private fun loadAccountInfo() {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             
             val profile = profileRepository.getActiveProfile().firstOrNull()
             
@@ -89,7 +93,9 @@ class AccountViewModel @Inject constructor(
                             tariffPlan = info?.tariffPlan
                         }
                     }
-                } catch (e: Exception) { }
+                } catch (e: Exception) {
+                    _error.value = "Failed to fetch account info: ${e.message}"
+                }
                 
                 val remainingDays = if (expiryDate != null) calculateRemainingDays(expiryDate) else null
                 
@@ -97,7 +103,7 @@ class AccountViewModel @Inject constructor(
                     portalUrl = profile.serverUrl,
                     serverIp = serverIp,
                     protocol = profile.protocolType,
-                    status = "Connected",
+                    status = if (expiryDate != null) "Active" else "Unknown",
                     macAddress = profile.macAddress,
                     username = profile.username,
                     createdDate = createdDate,
@@ -118,9 +124,18 @@ class AccountViewModel @Inject constructor(
             val expiry = format.parse(expiryDateStr)
             val now = Date()
             if (expiry != null && expiry.after(now)) {
-                val days = (expiry.time - now.time) / (1000 * 60 * 60 * 24)
+                val diff = expiry.time - now.time
+                val days = diff / (1000 * 60 * 60 * 24)
                 "$days days"
-            } else "Expired"
-        } catch (e: Exception) { null }
+            } else {
+                "Expired"
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    fun refresh() {
+        loadAccountInfo()
     }
 }
