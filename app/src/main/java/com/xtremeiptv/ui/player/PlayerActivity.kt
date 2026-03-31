@@ -9,7 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -25,7 +25,6 @@ class PlayerActivity : ComponentActivity() {
         private const val TAG = "PlayerActivity"
         
         fun newIntent(context: Context, contentId: String, contentType: String, title: String, streamUrl: String): Intent {
-            Log.d(TAG, "newIntent: contentId=$contentId, contentType=$contentType, title=$title, streamUrl=$streamUrl")
             return Intent(context, PlayerActivity::class.java).apply {
                 putExtra("content_id", contentId)
                 putExtra("content_type", contentType)
@@ -37,17 +36,13 @@ class PlayerActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate")
         
         val streamUrl = intent.getStringExtra("stream_url") ?: ""
         
         if (streamUrl.isEmpty()) {
-            Log.e(TAG, "No stream URL provided, finishing")
             finish()
             return
         }
-        
-        Log.d(TAG, "Stream URL: $streamUrl")
         
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
@@ -56,10 +51,7 @@ class PlayerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     PlayerScreen(
                         streamUrl = streamUrl,
-                        onBack = { 
-                            Log.d(TAG, "onBack called")
-                            finish() 
-                        }
+                        onBack = { finish() }
                     )
                 }
             }
@@ -68,7 +60,6 @@ class PlayerActivity : ComponentActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "onDestroy")
     }
 }
 
@@ -85,14 +76,14 @@ fun PlayerScreen(
     val error by viewModel.error.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
-    LaunchedEffect(Unit) {
-        Log.d("PlayerScreen", "Loading stream: $streamUrl")
+    // Load stream only once
+    LaunchedEffect(streamUrl) {
         viewModel.loadStream(streamUrl)
     }
     
+    // Clean up on dispose
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("PlayerScreen", "Disposing player")
             viewModel.release()
         }
     }
@@ -105,59 +96,27 @@ fun PlayerScreen(
                     player = viewModel.getPlayer()
                     useController = true
                     resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
         
-        // Controls Overlay
-        PlayerControls(
-            isPlaying = isPlaying,
-            currentPosition = currentPosition,
-            duration = duration,
-            playbackSpeed = playbackSpeed,
-            title = "Playing",
-            contentType = "video",
-            onPlayPause = { 
-                Log.d("PlayerScreen", "Play/Pause clicked")
-                if (isPlaying) viewModel.pause() else viewModel.play() 
-            },
-            onSeek = { position -> 
-                Log.d("PlayerScreen", "Seek to: $position")
-                viewModel.seekTo(position) 
-            },
-            onSpeedChange = { speed -> 
-                Log.d("PlayerScreen", "Speed change: $speed")
-                viewModel.setPlaybackSpeed(speed) 
-            },
-            onSkipForward = { 
-                Log.d("PlayerScreen", "Skip forward")
-                viewModel.seekTo(currentPosition + 10000) 
-            },
-            onSkipBackward = { 
-                Log.d("PlayerScreen", "Skip backward")
-                viewModel.seekTo(currentPosition - 10000) 
-            },
-            onBack = onBack
-        )
-        
         // Loading Indicator
         if (isLoading) {
-            androidx.compose.material3.CircularProgressIndicator(
+            CircularProgressIndicator(
                 modifier = Modifier.align(androidx.compose.ui.Alignment.Center)
             )
         }
         
-        // Error Dialog
-        error?.let {
-            androidx.compose.material3.AlertDialog(
+        // Error Dialog - only show if not playing
+        if (error != null && !isPlaying && !isLoading) {
+            AlertDialog(
                 onDismissRequest = { onBack() },
-                title = { androidx.compose.material3.Text("Playback Error") },
-                text = { androidx.compose.material3.Text(it) },
+                title = { Text("Playback Error") },
+                text = { Text(error!!) },
                 confirmButton = {
-                    androidx.compose.material3.Button(onClick = { onBack() }) {
-                        androidx.compose.material3.Text("OK")
+                    Button(onClick = { onBack() }) {
+                        Text("OK")
                     }
                 }
             )
