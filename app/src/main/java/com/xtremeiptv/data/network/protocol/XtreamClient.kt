@@ -42,7 +42,6 @@ class XtreamClient @Inject constructor() {
         val added: String,
         val category_id: String,
         val category_name: String? = null,
-        val series_no: String? = null,
         val container_extension: String = "ts"
     )
     
@@ -60,10 +59,7 @@ class XtreamClient @Inject constructor() {
         val plot: String? = null,
         val backdrop_path: String? = null,
         val duration: String? = null,
-        val rating: String? = null,
-        val youtube_trailer: String? = null,
-        val director: String? = null,
-        val cast: String? = null
+        val rating: String? = null
     )
     
     @Serializable
@@ -80,15 +76,39 @@ class XtreamClient @Inject constructor() {
         val category_name: String? = null
     )
     
+    @Serializable
+    private data class SeriesData(
+        val seasons: List<SeasonData>? = null
+    )
+    
+    @Serializable
+    private data class SeasonData(
+        val season_number: Int,
+        val episodes: List<EpisodeData>? = null
+    )
+    
+    @Serializable
+    private data class EpisodeData(
+        val id: String,
+        val episode_num: String,
+        val title: String,
+        val container_extension: String,
+        val info: EpisodeInfo?
+    )
+    
+    @Serializable
+    private data class EpisodeInfo(
+        val plot: String? = null,
+        val duration: String? = null,
+        val releasedate: String? = null
+    )
+    
     private val json = Json { ignoreUnknownKeys = true }
     
     private fun cleanUrl(url: String): String {
         var cleaned = url.trim()
-        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
-            return cleaned
-        }
-        if (cleaned.startsWith("//")) {
-            cleaned = "https:$cleaned"
+        if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+            cleaned = "http://$cleaned"
         }
         return cleaned
     }
@@ -148,7 +168,7 @@ class XtreamClient @Inject constructor() {
         }
     }
     
-    suspend fun getSeries(creds: Credentials): List<Series> = withContext(Dispatchers.IO) {
+    suspend fun getSeriesList(creds: Credentials): List<Series> = withContext(Dispatchers.IO) {
         try {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/player_api.php?username=${creds.username}&password=${creds.password}&action=get_series"
@@ -165,6 +185,36 @@ class XtreamClient @Inject constructor() {
                     releaseDate = it.releaseDate
                 )
             }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    suspend fun getSeriesInfo(creds: Credentials, seriesId: String): List<Season> = withContext(Dispatchers.IO) {
+        try {
+            val baseUrl = cleanUrl(creds.url)
+            val url = "$baseUrl/player_api.php?username=${creds.username}&password=${creds.password}&action=get_series_info&series_id=$seriesId"
+            val response = URL(url).readText()
+            val seriesData = json.decodeFromString<SeriesData>(response)
+            
+            seriesData.seasons?.map { seasonData ->
+                Season(
+                    seasonNumber = seasonData.season_number,
+                    episodes = seasonData.episodes?.map { episodeData ->
+                        Episode(
+                            id = episodeData.id,
+                            title = episodeData.title,
+                            streamUrl = "$baseUrl/series/${creds.username}/${creds.password}/${episodeData.id}.${episodeData.container_extension}",
+                            episodeNumber = episodeData.episode_num.toIntOrNull() ?: 0,
+                            seasonNumber = seasonData.season_number,
+                            plot = episodeData.info?.plot,
+                            duration = episodeData.info?.duration,
+                            thumbnailUrl = null,
+                            releaseDate = episodeData.info?.releasedate
+                        )
+                    } ?: emptyList()
+                )
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
