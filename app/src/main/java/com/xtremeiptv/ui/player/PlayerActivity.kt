@@ -94,7 +94,6 @@ fun PlayerScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     
     LaunchedEffect(Unit) {
-        viewModel.initializePlayer()
         viewModel.loadStream(streamUrl)
     }
     
