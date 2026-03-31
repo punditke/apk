@@ -20,10 +20,8 @@ class MacClient @Inject constructor() {
     )
     
     data class UserInfo(
-        val createdDate: String?,
         val expiryDate: String?,
-        val maxConnections: Int?,
-        val tariffPlan: String?
+        val maxConnections: Int?
     )
     
     @Serializable
@@ -34,7 +32,12 @@ class MacClient @Inject constructor() {
     )
     
     @Serializable
-    private data class ChannelData(
+    private data class ChannelResponse(
+        val data: List<MacChannel>? = null
+    )
+    
+    @Serializable
+    private data class MacChannel(
         val id: String,
         val name: String,
         val logo: String? = null,
@@ -43,7 +46,12 @@ class MacClient @Inject constructor() {
     )
     
     @Serializable
-    private data class VodData(
+    private data class VodResponse(
+        val data: List<MacVod>? = null
+    )
+    
+    @Serializable
+    private data class MacVod(
         val id: String,
         val name: String,
         val poster: String? = null,
@@ -58,11 +66,8 @@ class MacClient @Inject constructor() {
     
     private fun cleanUrl(url: String): String {
         var cleaned = url.trim()
-        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
-            return cleaned
-        }
-        if (cleaned.startsWith("//")) {
-            cleaned = "https:$cleaned"
+        if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+            cleaned = "http://$cleaned"
         }
         return cleaned
     }
@@ -85,8 +90,8 @@ class MacClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/c/get_user?token=$token"
             val response = URL(url).readText()
-            // Parse user info - implementation depends on API response
-            UserInfo(null, null, null, null)
+            // Parse user info from response
+            UserInfo(null, null)
         } catch (e: Exception) { 
             null 
         }
@@ -98,8 +103,8 @@ class MacClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/c/get_channels?token=$token"
             val response = URL(url).readText()
-            val channels = json.decodeFromString<List<ChannelData>>(response)
-            channels.map {
+            val wrapper = json.decodeFromString<ChannelResponse>(response)
+            wrapper.data?.map {
                 Channel(
                     id = it.id,
                     name = it.name,
@@ -107,7 +112,7 @@ class MacClient @Inject constructor() {
                     logoUrl = it.logo,
                     groupTitle = it.category
                 )
-            }
+            } ?: emptyList()
         } catch (e: Exception) { 
             emptyList() 
         }
@@ -119,8 +124,8 @@ class MacClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/c/get_vod?token=$token"
             val response = URL(url).readText()
-            val vods = json.decodeFromString<List<VodData>>(response)
-            vods.map {
+            val wrapper = json.decodeFromString<VodResponse>(response)
+            wrapper.data?.map {
                 VodItem(
                     id = it.id,
                     title = it.name,
@@ -131,7 +136,7 @@ class MacClient @Inject constructor() {
                     rating = it.rating?.toFloatOrNull(),
                     releaseDate = it.year
                 )
-            }
+            } ?: emptyList()
         } catch (e: Exception) { 
             emptyList() 
         }
@@ -143,7 +148,6 @@ class MacClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/c/get_series?token=$token"
             val response = URL(url).readText()
-            // For now, return empty list
             emptyList()
         } catch (e: Exception) { 
             emptyList() 
