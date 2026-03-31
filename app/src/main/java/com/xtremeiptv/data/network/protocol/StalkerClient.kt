@@ -1,6 +1,8 @@
 package com.xtremeiptv.data.network.protocol
 
 import com.xtremeiptv.data.network.model.Channel
+import com.xtremeiptv.data.network.model.Episode
+import com.xtremeiptv.data.network.model.Season
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +110,6 @@ class StalkerClient @Inject constructor() {
             val token = getToken(creds) ?: return@withContext null
             val url = "${creds.url}/stalker_portal/api/v1/user?token=$token"
             val response = URL(url).readText()
-            // Parse actual response
             UserInfo(null, null, null, null)
         } catch (e: Exception) { null }
     }
@@ -163,21 +164,26 @@ class StalkerClient @Inject constructor() {
             val response = URL(url).readText()
             val seriesList = json.decodeFromString<List<SeriesData>>(response)
             seriesList.map { series ->
-                val seasons = series.seasons?.map { season ->
-                    Season(
-                        seasonNumber = season.season_number,
-                        episodes = season.episodes?.map { episode ->
-                            Episode(
-                                id = episode.id,
-                                title = episode.title,
-                                streamUrl = "${creds.url}/series/${creds.username}/${creds.password}/${episode.id}.${episode.container_extension}",
-                                episodeNumber = episode.episode_num.toIntOrNull() ?: 0,
-                                seasonNumber = season.season_number,
-                                plot = episode.info?.plot,
-                                duration = episode.info?.duration
-                            )
-                        } ?: emptyList()
-                    )
+                val seasons = series.seasons?.mapNotNull { seasonData ->
+                    val episodes = seasonData.episodes?.map { episodeData ->
+                        Episode(
+                            id = episodeData.id,
+                            title = episodeData.title,
+                            streamUrl = "${creds.url}/series/${creds.username}/${creds.password}/${episodeData.id}.${episodeData.container_extension}",
+                            episodeNumber = episodeData.episode_num.toIntOrNull() ?: 0,
+                            seasonNumber = seasonData.season_number,
+                            plot = episodeData.info?.plot,
+                            duration = episodeData.info?.duration,
+                            thumbnailUrl = null
+                        )
+                    } ?: emptyList()
+                    
+                    if (episodes.isNotEmpty()) {
+                        Season(
+                            seasonNumber = seasonData.season_number,
+                            episodes = episodes
+                        )
+                    } else null
                 } ?: emptyList()
                 
                 Series(
