@@ -25,8 +25,6 @@ class SeriesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
-    private var currentProfileId: String? = null
-    
     init {
         loadSeries()
     }
@@ -44,18 +42,14 @@ class SeriesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                currentProfileId = profile.id
                 val result = contentRepository.loadSeries(profile, useCache = !forceRefresh)
-                
                 _series.value = result
                 
                 if (result.isEmpty() && !forceRefresh) {
                     loadSeries(forceRefresh = true)
-                } else if (result.isEmpty()) {
-                    _error.value = "No series found"
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load series"
+                _error.value = e.message
             } finally {
                 _isLoading.value = false
             }
@@ -64,9 +58,5 @@ class SeriesViewModel @Inject constructor(
     
     fun refresh() {
         loadSeries(forceRefresh = true)
-    }
-    
-    fun clearError() {
-        _error.value = null
     }
 }
