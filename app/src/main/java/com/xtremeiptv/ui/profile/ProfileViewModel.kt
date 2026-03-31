@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.database.entity.Profile
 import com.xtremeiptv.data.network.protocol.*
+import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -14,6 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
+    private val contentRepository: ContentRepository,
     private val xtreamClient: XtreamClient,
     private val stalkerClient: StalkerClient,
     private val macClient: MacClient,
@@ -58,64 +60,17 @@ class ProfileViewModel @Inject constructor(
     
     suspend fun validateAndGetStats(profile: Profile): ProfileValidationResult {
         return try {
-            when (profile.protocolType) {
-                "xtream" -> {
-                    val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
-                    val channels = xtreamClient.getLiveChannels(creds)
-                    val movies = xtreamClient.getVodMovies(creds)
-                    val series = xtreamClient.getSeries(creds)
-                    ProfileValidationResult(
-                        success = channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty(),
-                        message = "Loaded: ${channels.size} channels, ${movies.size} movies, ${series.size} series",
-                        channels = channels.size,
-                        movies = movies.size,
-                        series = series.size
-                    )
-                }
-                "stalker" -> {
-                    val creds = StalkerClient.StalkerCredentials(
-                        profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
-                    )
-                    val channels = stalkerClient.getLiveChannels(creds)
-                    val movies = stalkerClient.getVodMovies(creds)
-                    val series = stalkerClient.getSeries(creds)
-                    ProfileValidationResult(
-                        success = channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty(),
-                        message = "Loaded: ${channels.size} channels, ${movies.size} movies, ${series.size} series",
-                        channels = channels.size,
-                        movies = movies.size,
-                        series = series.size
-                    )
-                }
-                "mac" -> {
-                    val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
-                    val channels = macClient.getLiveChannels(creds)
-                    val movies = macClient.getVodMovies(creds)
-                    val series = macClient.getSeries(creds)
-                    ProfileValidationResult(
-                        success = channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty(),
-                        message = "Loaded: ${channels.size} channels, ${movies.size} movies, ${series.size} series",
-                        channels = channels.size,
-                        movies = movies.size,
-                        series = series.size
-                    )
-                }
-                "m3u" -> {
-                    val m3uResult = if (profile.serverUrl.startsWith("http")) {
-                        m3uLoader.loadFromUrl(profile.serverUrl)
-                    } else {
-                        m3uLoader.loadFromFile(profile.serverUrl)
-                    }
-                    ProfileValidationResult(
-                        success = m3uResult.channels.isNotEmpty() || m3uResult.movies.isNotEmpty() || m3uResult.series.isNotEmpty(),
-                        message = "Loaded: ${m3uResult.channels.size} channels, ${m3uResult.movies.size} movies, ${m3uResult.series.size} series",
-                        channels = m3uResult.channels.size,
-                        movies = m3uResult.movies.size,
-                        series = m3uResult.series.size
-                    )
-                }
-                else -> ProfileValidationResult(false, "Unknown protocol")
-            }
+            val channels = contentRepository.loadLiveChannels(profile, useCache = false)
+            val movies = contentRepository.loadMovies(profile, useCache = false)
+            val series = contentRepository.loadSeries(profile, useCache = false)
+            
+            ProfileValidationResult(
+                success = channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty(),
+                message = "Loaded: ${channels.size} channels, ${movies.size} movies, ${series.size} series",
+                channels = channels.size,
+                movies = movies.size,
+                series = series.size
+            )
         } catch (e: Exception) {
             ProfileValidationResult(false, "Error: ${e.message}")
         }
@@ -150,8 +105,13 @@ class ProfileViewModel @Inject constructor(
             
             if (validation.success) {
                 try {
-                    if (id == null) profileRepository.addProfile(profile)
-                    else profileRepository.updateProfile(profile)
+                    if (id == null) {
+                        profileRepository.addProfile(profile)
+                    } else {
+                        profileRepository.updateProfile(profile)
+                    }
+                    // Refresh cache after successful save
+                    contentRepository.refreshCache(profile)
                     onResult(true, validation.message, validation.channels, validation.movies, validation.series)
                 } catch (e: Exception) {
                     onResult(false, "Save failed: ${e.message}", 0, 0, 0)
@@ -167,6 +127,8 @@ class ProfileViewModel @Inject constructor(
     fun deleteProfile(profile: Profile) {
         viewModelScope.launch {
             profileRepository.deleteProfile(profile)
+            // Clear cache for deleted profile
+            contentRepository.clearCache(profile.id)
         }
     }
 }
