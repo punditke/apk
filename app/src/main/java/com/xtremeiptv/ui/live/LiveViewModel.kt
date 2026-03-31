@@ -73,10 +73,10 @@ class LiveViewModel @Inject constructor(
                 
                 _channels.value = result
                 if (result.isEmpty() && _error.value == null) {
-                    _error.value = "No channels found"
+                    _error.value = "No channels found. Check your credentials or try a different playlist."
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = "Error: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
