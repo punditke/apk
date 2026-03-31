@@ -9,7 +9,6 @@ import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import com.xtremeiptv.data.network.protocol.*
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -76,7 +75,6 @@ class ContentRepository @Inject constructor(
     
     suspend fun refreshCache(profile: com.xtremeiptv.data.database.entity.Profile) {
         try {
-            // Parallel fetch all three content types
             val (channels, movies, series) = coroutineScope {
                 val channelsDeferred = async { loadLiveChannelsFromNetwork(profile) }
                 val moviesDeferred = async { loadMoviesFromNetwork(profile) }
@@ -95,27 +93,6 @@ class ContentRepository @Inject constructor(
             cacheDao.insertOrUpdate(cached)
         } catch (e: Exception) {
             // Cache refresh failed, keep existing cache
-        }
-    }
-    
-    suspend fun refreshCacheFast(profile: com.xtremeiptv.data.database.entity.Profile, contentTypes: List<String> = listOf("live", "movies", "series")) {
-        try {
-            val channels = if ("live" in contentTypes) loadLiveChannelsFromNetwork(profile) else emptyList()
-            val movies = if ("movies" in contentTypes) loadMoviesFromNetwork(profile) else emptyList()
-            val series = if ("series" in contentTypes) loadSeriesFromNetwork(profile) else emptyList()
-            
-            val existing = cacheDao.getCachedContent(profile.id).first()
-            val cached = CachedContent(
-                profileId = profile.id,
-                protocolType = profile.protocolType,
-                channelsJson = if (channels.isNotEmpty()) json.encodeToString(channels) else existing?.channelsJson ?: "",
-                moviesJson = if (movies.isNotEmpty()) json.encodeToString(movies) else existing?.moviesJson ?: "",
-                seriesJson = if (series.isNotEmpty()) json.encodeToString(series) else existing?.seriesJson ?: "",
-                lastUpdated = System.currentTimeMillis()
-            )
-            cacheDao.insertOrUpdate(cached)
-        } catch (e: Exception) {
-            // Cache refresh failed
         }
     }
     
@@ -194,7 +171,7 @@ class ContentRepository @Inject constructor(
             when (profile.protocolType) {
                 "xtream" -> {
                     val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
-                    xtreamClient.getSeries(creds)
+                    xtreamClient.getSeriesList(creds)
                 }
                 "stalker" -> {
                     val creds = StalkerClient.StalkerCredentials(
@@ -221,7 +198,7 @@ class ContentRepository @Inject constructor(
         }
     }
     
-    // ==================== PUBLIC METHODS (with cache and parallel loading) ====================
+    // ==================== PUBLIC METHODS (with cache) ====================
     
     suspend fun loadLiveChannels(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<Channel> {
         if (useCache) {
@@ -232,7 +209,7 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadLiveChannelsFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCacheFast(profile, listOf("live"))
+            refreshCache(profile)
         }
         return fresh
     }
@@ -246,7 +223,7 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadMoviesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCacheFast(profile, listOf("movies"))
+            refreshCache(profile)
         }
         return fresh
     }
@@ -260,47 +237,14 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadSeriesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCacheFast(profile, listOf("series"))
+            refreshCache(profile)
         }
         return fresh
     }
     
-    // Load all content types in parallel (faster initial load)
-    suspend fun loadAllContent(profile: com.xtremeiptv.data.database.entity.Profile): Triple<List<Channel>, List<VodItem>, List<Series>> {
-        // Check cache first
-        val cachedChannels = getCachedChannels(profile.id)
-        val cachedMovies = getCachedMovies(profile.id)
-        val cachedSeries = getCachedSeries(profile.id)
-        
-        if (cachedChannels.isNotEmpty() && cachedMovies.isNotEmpty() && cachedSeries.isNotEmpty()) {
-            return Triple(cachedChannels, cachedMovies, cachedSeries)
-        }
-        
-        // Parallel network fetch
-        return coroutineScope {
-            val channelsDeferred = async { loadLiveChannelsFromNetwork(profile) }
-            val moviesDeferred = async { loadMoviesFromNetwork(profile) }
-            val seriesDeferred = async { loadSeriesFromNetwork(profile) }
-            
-            val channels = channelsDeferred.await()
-            val movies = moviesDeferred.await()
-            val series = seriesDeferred.await()
-            
-            // Save to cache
-            if (channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty()) {
-                val cached = CachedContent(
-                    profileId = profile.id,
-                    protocolType = profile.protocolType,
-                    channelsJson = json.encodeToString(channels),
-                    moviesJson = json.encodeToString(movies),
-                    seriesJson = json.encodeToString(series),
-                    lastUpdated = System.currentTimeMillis()
-                )
-                cacheDao.insertOrUpdate(cached)
-            }
-            
-            Triple(channels, movies, series)
-        }
+    // Alias for backward compatibility
+    suspend fun getSeries(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<Series> {
+        return loadSeries(profile, useCache)
     }
     
     // ==================== FAVORITES ====================
