@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.xtremeiptv.utils.XtremeIPTVTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -105,7 +104,6 @@ fun PlayerScreen(
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
-        // Video Player
         AndroidView(
             factory = { context ->
                 PlayerView(context).apply {
@@ -118,7 +116,6 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
         
-        // Controls Overlay
         PlayerControls(
             isPlaying = isPlaying,
             currentPosition = currentPosition,
@@ -134,14 +131,12 @@ fun PlayerScreen(
             onBack = onBack
         )
         
-        // Loading indicator
         if (isLoading) {
             androidx.compose.material3.CircularProgressIndicator(
                 modifier = Modifier.align(androidx.compose.ui.Alignment.Center)
             )
         }
         
-        // Error message
         error?.let {
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { onBack() },
