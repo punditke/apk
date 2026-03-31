@@ -69,10 +69,15 @@ class AccountViewModel @Inject constructor(
                         "xtream" -> {
                             val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
                             val info = xtreamClient.getAccountInfo(creds)
-                            createdDate = info?.createdDate
-                            expiryDate = info?.expiryDate
-                            maxConnections = info?.maxConnections
-                            tariffPlan = info?.tariffPlan
+                            createdDate = info?.created_at
+                            expiryDate = info?.exp_date?.let { 
+                                try {
+                                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                        .format(Date(it.toLong() * 1000))
+                                } catch (e: Exception) { null }
+                            }
+                            maxConnections = info?.max_connections?.toIntOrNull()
+                            tariffPlan = info?.tariff_plan
                         }
                         "stalker" -> {
                             val creds = StalkerClient.StalkerCredentials(
@@ -103,7 +108,7 @@ class AccountViewModel @Inject constructor(
                     portalUrl = profile.serverUrl,
                     serverIp = serverIp,
                     protocol = profile.protocolType,
-                    status = if (expiryDate != null) "Active" else "Unknown",
+                    status = if (expiryDate != null) "Active" else "Connected",
                     macAddress = profile.macAddress,
                     username = profile.username,
                     createdDate = createdDate,
