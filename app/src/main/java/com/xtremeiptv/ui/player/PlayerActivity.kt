@@ -7,13 +7,13 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.xtremeiptv.utils.XtremeIPTVTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,12 +25,14 @@ class PlayerActivity : ComponentActivity() {
         private const val EXTRA_CONTENT_ID = "content_id"
         private const val EXTRA_CONTENT_TYPE = "content_type"
         private const val EXTRA_TITLE = "title"
+        private const val EXTRA_STREAM_URL = "stream_url"
         
-        fun newIntent(context: Context, contentId: String, contentType: String, title: String): Intent {
+        fun newIntent(context: Context, contentId: String, contentType: String, title: String, streamUrl: String): Intent {
             return Intent(context, PlayerActivity::class.java).apply {
                 putExtra(EXTRA_CONTENT_ID, contentId)
                 putExtra(EXTRA_CONTENT_TYPE, contentType)
                 putExtra(EXTRA_TITLE, title)
+                putExtra(EXTRA_STREAM_URL, streamUrl)
             }
         }
     }
@@ -38,6 +40,7 @@ class PlayerActivity : ComponentActivity() {
     private var contentId: String = ""
     private var contentType: String = ""
     private var title: String = ""
+    private var streamUrl: String = ""
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +48,7 @@ class PlayerActivity : ComponentActivity() {
         contentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: ""
         contentType = intent.getStringExtra(EXTRA_CONTENT_TYPE) ?: "live"
         title = intent.getStringExtra(EXTRA_TITLE) ?: ""
+        streamUrl = intent.getStringExtra(EXTRA_STREAM_URL) ?: ""
         
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
@@ -52,7 +56,7 @@ class PlayerActivity : ComponentActivity() {
             XtremeIPTVTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     PlayerScreen(
-                        contentId = contentId,
+                        streamUrl = streamUrl,
                         contentType = contentType,
                         title = title,
                         onBack = { finish() }
@@ -76,39 +80,79 @@ class PlayerActivity : ComponentActivity() {
 
 @Composable
 fun PlayerScreen(
-    contentId: String,
+    streamUrl: String,
     contentType: String,
     title: String,
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
-    val streamUrl by viewModel.streamUrl.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val duration by viewModel.duration.collectAsState()
+    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val error by viewModel.error.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     
     LaunchedEffect(Unit) {
-        viewModel.loadContent(contentId, contentType)
+        viewModel.initializePlayer()
+        viewModel.loadStream(streamUrl)
+    }
+    
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.release()
+        }
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            isLoading -> {
-                // Loading handled by ViewModel
-            }
-            error != null -> {
-                // Error handled by ViewModel
-            }
-            streamUrl != null -> {
-                AndroidView(
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            player = viewModel.getPlayer()
-                            useController = true
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+        // Video Player
+        AndroidView(
+            factory = { context ->
+                PlayerView(context).apply {
+                    player = viewModel.getPlayer()
+                    useController = true
+                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // Controls Overlay
+        PlayerControls(
+            isPlaying = isPlaying,
+            currentPosition = currentPosition,
+            duration = duration,
+            playbackSpeed = playbackSpeed,
+            title = title,
+            contentType = contentType,
+            onPlayPause = { if (isPlaying) viewModel.pause() else viewModel.play() },
+            onSeek = { viewModel.seekTo(it) },
+            onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+            onSkipForward = { viewModel.seekTo(currentPosition + 10000) },
+            onSkipBackward = { viewModel.seekTo(currentPosition - 10000) },
+            onBack = onBack
+        )
+        
+        // Loading indicator
+        if (isLoading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.align(androidx.compose.ui.Alignment.Center)
+            )
+        }
+        
+        // Error message
+        error?.let {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { onBack() },
+                title = { androidx.compose.material3.Text("Playback Error") },
+                text = { androidx.compose.material3.Text(it) },
+                confirmButton = {
+                    androidx.compose.material3.Button(onClick = { onBack() }) {
+                        androidx.compose.material3.Text("OK")
+                    }
+                }
+            )
         }
     }
 }
