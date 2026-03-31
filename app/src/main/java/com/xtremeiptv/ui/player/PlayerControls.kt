@@ -41,6 +41,7 @@ fun PlayerControls(
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
+        // Tap area to show controls
         androidx.compose.foundation.clickable(
             onClick = { showControls = true },
             indication = null,
