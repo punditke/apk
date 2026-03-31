@@ -3,6 +3,7 @@ package com.xtremeiptv.ui.player
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,11 +44,16 @@ fun PlayerControls(
     
     Box(modifier = Modifier.fillMaxSize()) {
         // Tap area to show controls
-        androidx.compose.foundation.clickable(
-            onClick = { showControls = true },
-            indication = null,
-            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-        ) { }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    showControls = true
+                }
+        )
         
         AnimatedVisibility(
             visible = showControls,
