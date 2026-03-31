@@ -26,6 +26,7 @@ class AccountViewModel @Inject constructor(
         val status: String,
         val macAddress: String? = null,
         val username: String? = null,
+        val name: String? = null,
         val createdDate: String? = null,
         val expiryDate: String? = null,
         val remainingDays: String? = null,
@@ -59,6 +60,7 @@ class AccountViewModel @Inject constructor(
                     .replace("https://", "")
                     .split("/")[0]
                 
+                var name: String? = null
                 var createdDate: String? = null
                 var expiryDate: String? = null
                 var maxConnections: Int? = null
@@ -69,6 +71,7 @@ class AccountViewModel @Inject constructor(
                         "xtream" -> {
                             val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
                             val info = xtreamClient.getAccountInfo(creds)
+                            name = info?.username
                             createdDate = info?.created_at
                             expiryDate = info?.exp_date?.let { 
                                 try {
@@ -84,7 +87,7 @@ class AccountViewModel @Inject constructor(
                                 profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
                             )
                             val info = stalkerClient.getAccountInfo(creds)
-                            createdDate = info?.createdDate
+                            name = info?.name
                             expiryDate = info?.expiryDate
                             maxConnections = info?.maxConnections
                             tariffPlan = info?.tariffPlan
@@ -92,10 +95,8 @@ class AccountViewModel @Inject constructor(
                         "mac" -> {
                             val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
                             val info = macClient.getAccountInfo(creds)
-                            createdDate = info?.createdDate
                             expiryDate = info?.expiryDate
                             maxConnections = info?.maxConnections
-                            tariffPlan = info?.tariffPlan
                         }
                     }
                 } catch (e: Exception) {
@@ -111,6 +112,7 @@ class AccountViewModel @Inject constructor(
                     status = if (expiryDate != null) "Active" else "Connected",
                     macAddress = profile.macAddress,
                     username = profile.username,
+                    name = name,
                     createdDate = createdDate,
                     expiryDate = expiryDate,
                     remainingDays = remainingDays,
