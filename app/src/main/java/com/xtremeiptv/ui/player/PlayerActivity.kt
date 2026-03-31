@@ -37,17 +37,11 @@ class PlayerActivity : ComponentActivity() {
         }
     }
     
-    private var contentId: String = ""
-    private var contentType: String = ""
-    private var title: String = ""
     private var streamUrl: String = ""
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        contentId = intent.getStringExtra(EXTRA_CONTENT_ID) ?: ""
-        contentType = intent.getStringExtra(EXTRA_CONTENT_TYPE) ?: "live"
-        title = intent.getStringExtra(EXTRA_TITLE) ?: ""
         streamUrl = intent.getStringExtra(EXTRA_STREAM_URL) ?: ""
         
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -57,8 +51,6 @@ class PlayerActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     PlayerScreen(
                         streamUrl = streamUrl,
-                        contentType = contentType,
-                        title = title,
                         onBack = { finish() }
                     )
                 }
@@ -76,13 +68,23 @@ class PlayerActivity : ComponentActivity() {
         }
         return super.onKeyDown(keyCode, event)
     }
+    
+    override fun onPause() {
+        super.onPause()
+        if (!isInPictureInPictureMode) {
+            // Pause playback when not in PIP mode
+            // ViewModel handles this via lifecycle
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+    }
 }
 
 @Composable
 fun PlayerScreen(
     streamUrl: String,
-    contentType: String,
-    title: String,
     onBack: () -> Unit,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
@@ -93,10 +95,12 @@ fun PlayerScreen(
     val error by viewModel.error.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     
+    // Load stream when screen appears
     LaunchedEffect(Unit) {
         viewModel.loadStream(streamUrl)
     }
     
+    // Clean up when screen disappears
     DisposableEffect(Unit) {
         onDispose {
             viewModel.release()
@@ -104,6 +108,7 @@ fun PlayerScreen(
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
+        // Video Player View
         AndroidView(
             factory = { context ->
                 PlayerView(context).apply {
@@ -116,13 +121,14 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
         
+        // Controls Overlay
         PlayerControls(
             isPlaying = isPlaying,
             currentPosition = currentPosition,
             duration = duration,
             playbackSpeed = playbackSpeed,
-            title = title,
-            contentType = contentType,
+            title = "Playing",
+            contentType = "video",
             onPlayPause = { if (isPlaying) viewModel.pause() else viewModel.play() },
             onSeek = { viewModel.seekTo(it) },
             onSpeedChange = { viewModel.setPlaybackSpeed(it) },
@@ -131,12 +137,14 @@ fun PlayerScreen(
             onBack = onBack
         )
         
+        // Loading Indicator
         if (isLoading) {
             androidx.compose.material3.CircularProgressIndicator(
                 modifier = Modifier.align(androidx.compose.ui.Alignment.Center)
             )
         }
         
+        // Error Dialog
         error?.let {
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { onBack() },
