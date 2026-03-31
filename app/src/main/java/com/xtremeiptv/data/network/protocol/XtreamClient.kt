@@ -1,6 +1,8 @@
 package com.xtremeiptv.data.network.protocol
 
 import com.xtremeiptv.data.network.model.Channel
+import com.xtremeiptv.data.network.model.Episode
+import com.xtremeiptv.data.network.model.Season
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import kotlinx.coroutines.Dispatchers
@@ -182,7 +184,8 @@ class XtreamClient @Inject constructor() {
                     backdropUrl = it.backdrop_path,
                     plot = it.plot,
                     rating = it.rating?.toFloatOrNull(),
-                    releaseDate = it.releaseDate
+                    releaseDate = it.releaseDate,
+                    seasons = emptyList()
                 )
             }
         } catch (e: Exception) {
