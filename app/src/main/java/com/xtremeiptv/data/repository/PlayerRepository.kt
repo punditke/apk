@@ -68,6 +68,11 @@ class PlayerRepository @Inject constructor(
         try {
             Log.d(TAG, "Loading stream: $url")
             
+            if (url.isEmpty()) {
+                _error.value = "Stream URL is empty"
+                return
+            }
+            
             if (exoPlayer == null) {
                 initPlayer()
             }
@@ -86,20 +91,24 @@ class PlayerRepository @Inject constructor(
                 .setUserAgent("XtremeIPTV/1.0 (Android)")
             
             val mediaItem = MediaItem.fromUri(Uri.parse(url))
+            val lowerUrl = url.lowercase()
             
-            // Detect stream type from URL
             val mediaSource = when {
-                url.contains(".m3u8") || url.contains("hls") -> {
+                lowerUrl.contains(".m3u8") || lowerUrl.contains("m3u8") || lowerUrl.contains("hls") -> {
                     Log.d(TAG, "Using HLS MediaSource")
-                    HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                    HlsMediaSource.Factory(dataSourceFactory)
+                        .setAllowChunklessPreparation(true)
+                        .createMediaSource(mediaItem)
                 }
-                url.contains(".mpd") || url.contains("dash") -> {
+                lowerUrl.contains(".mpd") || lowerUrl.contains("dash") -> {
                     Log.d(TAG, "Using DASH MediaSource")
-                    DashMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                    DashMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(mediaItem)
                 }
                 else -> {
                     Log.d(TAG, "Using Progressive MediaSource (MP4/TS)")
-                    ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+                    ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(mediaItem)
                 }
             }
             
@@ -166,6 +175,7 @@ class PlayerRepository @Inject constructor(
                 Player.STATE_READY -> {
                     _isPlaying.value = exoPlayer?.isPlaying == true
                     _buffering.value = false
+                    _error.value = null
                     Log.d(TAG, "Player ready, isPlaying: ${exoPlayer?.isPlaying}")
                 }
                 Player.STATE_BUFFERING -> {
