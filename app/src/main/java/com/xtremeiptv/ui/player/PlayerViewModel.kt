@@ -1,6 +1,5 @@
 package com.xtremeiptv.ui.player
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.repository.PlayerRepository
@@ -14,10 +13,6 @@ class PlayerViewModel @Inject constructor(
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
     
-    companion object {
-        private const val TAG = "PlayerViewModel"
-    }
-    
     val isPlaying = playerRepository.isPlaying
     val currentPosition = playerRepository.currentPosition
     val duration = playerRepository.duration
@@ -30,71 +25,56 @@ class PlayerViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
-    init {
-        Log.d(TAG, "ViewModel created")
-    }
+    private var currentUrl: String? = null
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
+        // Prevent reloading same URL
+        if (currentUrl == url) {
+            return
+        }
+        currentUrl = url
+        
         viewModelScope.launch {
-            Log.d(TAG, "loadStream called with url: $url")
             _isLoading.value = true
             _error.value = null
             
             // Collect errors
             launch {
                 playerRepository.error.collect { err ->
-                    if (err != null) {
-                        Log.e(TAG, "Error from repository: $err")
+                    if (err != null && !isPlaying.value) {
                         _error.value = err
                         _isLoading.value = false
                     }
                 }
             }
             
-            // Start loading
-            playerRepository.loadStream(url, resumePosition)
-            
-            // Wait for playback to start
+            // Clear error when playback starts
             launch {
                 playerRepository.isPlaying.collect { playing ->
                     if (playing) {
-                        Log.d(TAG, "Playback started")
+                        _error.value = null
                         _isLoading.value = false
                     }
                 }
             }
+            
+            playerRepository.loadStream(url, resumePosition)
         }
     }
     
-    fun play() {
-        Log.d(TAG, "play() called")
-        playerRepository.play()
-    }
-    
-    fun pause() {
-        Log.d(TAG, "pause() called")
-        playerRepository.pause()
-    }
-    
-    fun seekTo(position: Long) {
-        Log.d(TAG, "seekTo: $position")
-        playerRepository.seekTo(position)
-    }
-    
-    fun setPlaybackSpeed(speed: Float) {
-        Log.d(TAG, "setPlaybackSpeed: $speed")
-        playerRepository.setPlaybackSpeed(speed)
-    }
+    fun play() = playerRepository.play()
+    fun pause() = playerRepository.pause()
+    fun seekTo(position: Long) = playerRepository.seekTo(position)
+    fun setPlaybackSpeed(speed: Float) = playerRepository.setPlaybackSpeed(speed)
     
     fun release() {
-        Log.d(TAG, "release() called")
+        currentUrl = null
         playerRepository.release()
     }
     
     fun getPlayer() = playerRepository.getPlayer()
     
     override fun onCleared() {
-        Log.d(TAG, "ViewModel cleared")
         release()
         super.onCleared()
     }
