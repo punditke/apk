@@ -20,6 +20,7 @@ import com.xtremeiptv.ui.player.PlayerActivity
 
 @Composable
 fun LiveTabScreen(
+    onPlay: (String, String, String, String) -> Unit,
     viewModel: LiveViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -60,15 +61,12 @@ fun LiveTabScreen(
                         ChannelItem(
                             channel = channel,
                             onClick = {
-                                PlayerActivity.newIntent(
-                                    context,
+                                onPlay(
                                     channel.id,
                                     "live",
                                     channel.name,
                                     channel.streamUrl
-                                ).let { intent ->
-                                    context.startActivity(intent)
-                                }
+                                )
                             }
                         )
                     }
