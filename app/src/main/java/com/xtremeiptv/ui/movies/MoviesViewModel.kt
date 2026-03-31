@@ -25,8 +25,6 @@ class MoviesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
-    private var currentProfileId: String? = null
-    
     init {
         loadMovies()
     }
@@ -44,18 +42,14 @@ class MoviesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                currentProfileId = profile.id
                 val result = contentRepository.loadMovies(profile, useCache = !forceRefresh)
-                
                 _movies.value = result
                 
                 if (result.isEmpty() && !forceRefresh) {
                     loadMovies(forceRefresh = true)
-                } else if (result.isEmpty()) {
-                    _error.value = "No movies found"
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load movies"
+                _error.value = e.message
             } finally {
                 _isLoading.value = false
             }
@@ -64,9 +58,5 @@ class MoviesViewModel @Inject constructor(
     
     fun refresh() {
         loadMovies(forceRefresh = true)
-    }
-    
-    fun clearError() {
-        _error.value = null
     }
 }
