@@ -8,6 +8,9 @@ import com.xtremeiptv.data.network.model.Channel
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import com.xtremeiptv.data.network.protocol.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -73,9 +76,13 @@ class ContentRepository @Inject constructor(
     
     suspend fun refreshCache(profile: com.xtremeiptv.data.database.entity.Profile) {
         try {
-            val channels = loadLiveChannelsFromNetwork(profile)
-            val movies = loadMoviesFromNetwork(profile)
-            val series = loadSeriesFromNetwork(profile)
+            // Parallel fetch all three content types
+            val (channels, movies, series) = coroutineScope {
+                val channelsDeferred = async { loadLiveChannelsFromNetwork(profile) }
+                val moviesDeferred = async { loadMoviesFromNetwork(profile) }
+                val seriesDeferred = async { loadSeriesFromNetwork(profile) }
+                Triple(channelsDeferred.await(), moviesDeferred.await(), seriesDeferred.await())
+            }
             
             val cached = CachedContent(
                 profileId = profile.id,
@@ -88,6 +95,27 @@ class ContentRepository @Inject constructor(
             cacheDao.insertOrUpdate(cached)
         } catch (e: Exception) {
             // Cache refresh failed, keep existing cache
+        }
+    }
+    
+    suspend fun refreshCacheFast(profile: com.xtremeiptv.data.database.entity.Profile, contentTypes: List<String> = listOf("live", "movies", "series")) {
+        try {
+            val channels = if ("live" in contentTypes) loadLiveChannelsFromNetwork(profile) else emptyList()
+            val movies = if ("movies" in contentTypes) loadMoviesFromNetwork(profile) else emptyList()
+            val series = if ("series" in contentTypes) loadSeriesFromNetwork(profile) else emptyList()
+            
+            val existing = cacheDao.getCachedContent(profile.id).first()
+            val cached = CachedContent(
+                profileId = profile.id,
+                protocolType = profile.protocolType,
+                channelsJson = if (channels.isNotEmpty()) json.encodeToString(channels) else existing?.channelsJson ?: "",
+                moviesJson = if (movies.isNotEmpty()) json.encodeToString(movies) else existing?.moviesJson ?: "",
+                seriesJson = if (series.isNotEmpty()) json.encodeToString(series) else existing?.seriesJson ?: "",
+                lastUpdated = System.currentTimeMillis()
+            )
+            cacheDao.insertOrUpdate(cached)
+        } catch (e: Exception) {
+            // Cache refresh failed
         }
     }
     
@@ -193,7 +221,7 @@ class ContentRepository @Inject constructor(
         }
     }
     
-    // ==================== PUBLIC METHODS (with cache) ====================
+    // ==================== PUBLIC METHODS (with cache and parallel loading) ====================
     
     suspend fun loadLiveChannels(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<Channel> {
         if (useCache) {
@@ -204,7 +232,7 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadLiveChannelsFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCache(profile)
+            refreshCacheFast(profile, listOf("live"))
         }
         return fresh
     }
@@ -218,7 +246,7 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadMoviesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCache(profile)
+            refreshCacheFast(profile, listOf("movies"))
         }
         return fresh
     }
@@ -232,9 +260,47 @@ class ContentRepository @Inject constructor(
         }
         val fresh = loadSeriesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
-            refreshCache(profile)
+            refreshCacheFast(profile, listOf("series"))
         }
         return fresh
+    }
+    
+    // Load all content types in parallel (faster initial load)
+    suspend fun loadAllContent(profile: com.xtremeiptv.data.database.entity.Profile): Triple<List<Channel>, List<VodItem>, List<Series>> {
+        // Check cache first
+        val cachedChannels = getCachedChannels(profile.id)
+        val cachedMovies = getCachedMovies(profile.id)
+        val cachedSeries = getCachedSeries(profile.id)
+        
+        if (cachedChannels.isNotEmpty() && cachedMovies.isNotEmpty() && cachedSeries.isNotEmpty()) {
+            return Triple(cachedChannels, cachedMovies, cachedSeries)
+        }
+        
+        // Parallel network fetch
+        return coroutineScope {
+            val channelsDeferred = async { loadLiveChannelsFromNetwork(profile) }
+            val moviesDeferred = async { loadMoviesFromNetwork(profile) }
+            val seriesDeferred = async { loadSeriesFromNetwork(profile) }
+            
+            val channels = channelsDeferred.await()
+            val movies = moviesDeferred.await()
+            val series = seriesDeferred.await()
+            
+            // Save to cache
+            if (channels.isNotEmpty() || movies.isNotEmpty() || series.isNotEmpty()) {
+                val cached = CachedContent(
+                    profileId = profile.id,
+                    protocolType = profile.protocolType,
+                    channelsJson = json.encodeToString(channels),
+                    moviesJson = json.encodeToString(movies),
+                    seriesJson = json.encodeToString(series),
+                    lastUpdated = System.currentTimeMillis()
+                )
+                cacheDao.insertOrUpdate(cached)
+            }
+            
+            Triple(channels, movies, series)
+        }
     }
     
     // ==================== FAVORITES ====================
