@@ -33,7 +33,11 @@ class ContentRepository @Inject constructor(
     suspend fun getCachedChannels(profileId: String): List<Channel> {
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.channelsJson.isNotEmpty()) {
-            json.decodeFromString(cached.channelsJson)
+            try {
+                json.decodeFromString(cached.channelsJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
         } else {
             emptyList()
         }
@@ -42,7 +46,11 @@ class ContentRepository @Inject constructor(
     suspend fun getCachedMovies(profileId: String): List<VodItem> {
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.moviesJson.isNotEmpty()) {
-            json.decodeFromString(cached.moviesJson)
+            try {
+                json.decodeFromString(cached.moviesJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
         } else {
             emptyList()
         }
@@ -51,7 +59,11 @@ class ContentRepository @Inject constructor(
     suspend fun getCachedSeries(profileId: String): List<Series> {
         val cached = cacheDao.getCachedContent(profileId).first()
         return if (cached != null && cached.seriesJson.isNotEmpty()) {
-            json.decodeFromString(cached.seriesJson)
+            try {
+                json.decodeFromString(cached.seriesJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
         } else {
             emptyList()
         }
@@ -75,6 +87,10 @@ class ContentRepository @Inject constructor(
         } catch (e: Exception) {
             // Cache refresh failed, keep existing cache
         }
+    }
+    
+    suspend fun clearCache(profileId: String) {
+        cacheDao.deleteByProfileId(profileId)
     }
     
     // ==================== NETWORK LOADING ====================
@@ -178,9 +194,11 @@ class ContentRepository @Inject constructor(
     // ==================== PUBLIC METHODS (with cache) ====================
     
     suspend fun loadLiveChannels(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<Channel> {
-        val cached = getCachedChannels(profile.id)
-        if (useCache && cached.isNotEmpty()) {
-            return cached
+        if (useCache) {
+            val cached = getCachedChannels(profile.id)
+            if (cached.isNotEmpty()) {
+                return cached
+            }
         }
         val fresh = loadLiveChannelsFromNetwork(profile)
         if (fresh.isNotEmpty()) {
@@ -190,9 +208,11 @@ class ContentRepository @Inject constructor(
     }
     
     suspend fun loadMovies(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<VodItem> {
-        val cached = getCachedMovies(profile.id)
-        if (useCache && cached.isNotEmpty()) {
-            return cached
+        if (useCache) {
+            val cached = getCachedMovies(profile.id)
+            if (cached.isNotEmpty()) {
+                return cached
+            }
         }
         val fresh = loadMoviesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
@@ -202,9 +222,11 @@ class ContentRepository @Inject constructor(
     }
     
     suspend fun loadSeries(profile: com.xtremeiptv.data.database.entity.Profile, useCache: Boolean = true): List<Series> {
-        val cached = getCachedSeries(profile.id)
-        if (useCache && cached.isNotEmpty()) {
-            return cached
+        if (useCache) {
+            val cached = getCachedSeries(profile.id)
+            if (cached.isNotEmpty()) {
+                return cached
+            }
         }
         val fresh = loadSeriesFromNetwork(profile)
         if (fresh.isNotEmpty()) {
