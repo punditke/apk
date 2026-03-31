@@ -1,6 +1,7 @@
 package com.xtremeiptv.ui.player
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -9,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -32,7 +33,6 @@ fun PlayerControls(
 ) {
     var showControls by remember { mutableStateOf(true) }
     
-    // Auto-hide controls after 3 seconds
     LaunchedEffect(showControls) {
         if (showControls) {
             delay(3000)
@@ -41,16 +41,12 @@ fun PlayerControls(
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
-        // Tap to show/hide controls
         androidx.compose.foundation.clickable(
             onClick = { showControls = true },
             indication = null,
             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-        ) {
-            // Empty click handler
-        }
+        ) { }
         
-        // Controls overlay
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn() + slideInVertically(),
@@ -61,7 +57,6 @@ fun PlayerControls(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.7f))
             ) {
-                // Top bar with back button and title
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -83,7 +78,6 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                // Center controls (play/pause)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -111,7 +105,6 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Seek bar
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -146,7 +139,6 @@ fun PlayerControls(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Speed controls
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
