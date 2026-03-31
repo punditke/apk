@@ -30,8 +30,10 @@ class M3uLoader @Inject constructor(
         }
     }
     
-    suspend fun loadFromFile(content: String): M3uResult = withContext(Dispatchers.IO) {
+    suspend fun loadFromFile(filePath: String): M3uResult = withContext(Dispatchers.IO) {
         try {
+            val file = java.io.File(filePath)
+            val content = file.readText()
             val result = parser.parse(content)
             M3uResult(result.channels, result.vodMovies, result.vodSeries)
         } catch (e: Exception) {
