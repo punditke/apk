@@ -1,8 +1,6 @@
 package com.xtremeiptv.data.network.protocol
 
 import com.xtremeiptv.data.network.model.Channel
-import com.xtremeiptv.data.network.model.Episode
-import com.xtremeiptv.data.network.model.Season
 import com.xtremeiptv.data.network.model.Series
 import com.xtremeiptv.data.network.model.VodItem
 import kotlinx.coroutines.Dispatchers
@@ -24,12 +22,11 @@ class StalkerClient @Inject constructor() {
     )
     
     data class UserInfo(
-        val createdDate: String?,
+        val name: String?,
+        val login: String?,
         val expiryDate: String?,
         val maxConnections: Int?,
-        val tariffPlan: String?,
-        val name: String?,
-        val login: String?
+        val tariffPlan: String?
     )
     
     @Serializable
@@ -40,17 +37,48 @@ class StalkerClient @Inject constructor() {
     )
     
     @Serializable
-    private data class ChannelData(
+    private data class UserProfileResponse(
+        val name: String? = null,
+        val login: String? = null,
+        val password: String? = null,
+        val mac: String? = null,
+        val expirydate: String? = null,
+        val expire_billing_date: String? = null,
+        val max_connections: String? = null,
+        val tariff_plan: String? = null
+    )
+    
+    @Serializable
+    private data class ChannelResponse(
+        val js: ChannelJs? = null
+    )
+    
+    @Serializable
+    private data class ChannelJs(
+        val data: List<StalkerChannel>? = null
+    )
+    
+    @Serializable
+    private data class StalkerChannel(
         val id: String,
         val name: String,
         val logo: String? = null,
         val cmd: String,
-        val genre: String? = null,
-        val number: Int? = null
+        val tv_genre_id: String? = null
     )
     
     @Serializable
-    private data class VodData(
+    private data class VodResponse(
+        val js: VodJs? = null
+    )
+    
+    @Serializable
+    private data class VodJs(
+        val data: List<StalkerVod>? = null
+    )
+    
+    @Serializable
+    private data class StalkerVod(
         val id: String,
         val name: String,
         val poster: String? = null,
@@ -61,28 +89,12 @@ class StalkerClient @Inject constructor() {
         val cmd: String
     )
     
-    @Serializable
-    private data class UserProfileData(
-        val name: String? = null,
-        val login: String? = null,
-        val password: String? = null,
-        val mac: String? = null,
-        val expirydate: String? = null,
-        val expire_billing_date: String? = null,
-        val max_connections: String? = null,
-        val tariff_plan: String? = null,
-        val created: String? = null
-    )
-    
     private val json = Json { ignoreUnknownKeys = true }
     
     private fun cleanUrl(url: String): String {
         var cleaned = url.trim()
-        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
-            return cleaned
-        }
-        if (cleaned.startsWith("//")) {
-            cleaned = "https:$cleaned"
+        if (!cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
+            cleaned = "http://$cleaned"
         }
         return cleaned
     }
@@ -105,14 +117,13 @@ class StalkerClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/stalker_portal/api/v1/user?token=$token"
             val response = URL(url).readText()
-            val profile = json.decodeFromString<UserProfileData>(response)
+            val profile = json.decodeFromString<UserProfileResponse>(response)
             UserInfo(
-                createdDate = profile.created,
+                name = profile.name,
+                login = profile.login,
                 expiryDate = profile.expirydate ?: profile.expire_billing_date,
                 maxConnections = profile.max_connections?.toIntOrNull(),
-                tariffPlan = profile.tariff_plan,
-                name = profile.name,
-                login = profile.login
+                tariffPlan = profile.tariff_plan
             )
         } catch (e: Exception) { 
             null 
@@ -125,18 +136,18 @@ class StalkerClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/stalker_portal/api/v1/channels?token=$token"
             val response = URL(url).readText()
-            val channels = json.decodeFromString<List<ChannelData>>(response)
-            channels.mapNotNull { 
+            val wrapper = json.decodeFromString<ChannelResponse>(response)
+            wrapper.js?.data?.mapNotNull { 
                 if (it.cmd.isNotBlank()) {
                     Channel(
                         id = it.id,
                         name = it.name,
                         streamUrl = it.cmd,
                         logoUrl = it.logo,
-                        groupTitle = it.genre
+                        groupTitle = it.tv_genre_id
                     )
                 } else null
-            }
+            } ?: emptyList()
         } catch (e: Exception) { 
             emptyList() 
         }
@@ -148,8 +159,8 @@ class StalkerClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/stalker_portal/api/v1/vod?token=$token"
             val response = URL(url).readText()
-            val vods = json.decodeFromString<List<VodData>>(response)
-            vods.mapNotNull {
+            val wrapper = json.decodeFromString<VodResponse>(response)
+            wrapper.js?.data?.mapNotNull {
                 if (it.cmd.isNotBlank()) {
                     VodItem(
                         id = it.id,
@@ -162,7 +173,7 @@ class StalkerClient @Inject constructor() {
                         releaseDate = it.year
                     )
                 } else null
-            }
+            } ?: emptyList()
         } catch (e: Exception) { 
             emptyList() 
         }
@@ -174,8 +185,7 @@ class StalkerClient @Inject constructor() {
             val baseUrl = cleanUrl(creds.url)
             val url = "$baseUrl/stalker_portal/api/v1/series?token=$token"
             val response = URL(url).readText()
-            // For now, return empty list as series structure is complex
-            // Full implementation would parse series with seasons and episodes
+            // Parse series - implementation depends on API response structure
             emptyList()
         } catch (e: Exception) { 
             emptyList() 
