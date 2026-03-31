@@ -28,31 +28,33 @@ class PlayerViewModel @Inject constructor(
     private var currentUrl: String? = null
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
-        // Prevent reloading same URL
-        if (currentUrl == url) {
+        if (currentUrl == url && !isPlaying.value) {
+            // Same URL, just play
+            playerRepository.play()
             return
         }
+        
         currentUrl = url
         
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             
-            // Collect errors
-            launch {
-                playerRepository.error.collect { err ->
-                    if (err != null && !isPlaying.value) {
-                        _error.value = err
-                        _isLoading.value = false
-                    }
-                }
-            }
-            
             // Clear error when playback starts
             launch {
                 playerRepository.isPlaying.collect { playing ->
                     if (playing) {
                         _error.value = null
+                        _isLoading.value = false
+                    }
+                }
+            }
+            
+            // Collect errors
+            launch {
+                playerRepository.error.collect { err ->
+                    if (err != null) {
+                        _error.value = err
                         _isLoading.value = false
                     }
                 }
@@ -68,8 +70,8 @@ class PlayerViewModel @Inject constructor(
     fun setPlaybackSpeed(speed: Float) = playerRepository.setPlaybackSpeed(speed)
     
     fun release() {
-        currentUrl = null
         playerRepository.release()
+        currentUrl = null
     }
     
     fun getPlayer() = playerRepository.getPlayer()
