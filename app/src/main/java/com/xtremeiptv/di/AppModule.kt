@@ -81,12 +81,12 @@ object AppModule {
     @Singleton
     fun provideContentRepository(
         database: AppDatabase,
-        m3uParser: M3uParser,
+        m3uLoader: M3uLoader,
         xtreamClient: XtreamClient,
         stalkerClient: StalkerClient,
         macClient: MacClient
     ): ContentRepository {
-        return ContentRepository(database, m3uParser, xtreamClient, stalkerClient, macClient)
+        return ContentRepository(database, m3uLoader, xtreamClient, stalkerClient, macClient)
     }
     
     @Provides
