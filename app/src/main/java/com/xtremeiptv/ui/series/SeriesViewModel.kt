@@ -3,6 +3,7 @@ package com.xtremeiptv.ui.series
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.network.model.Series
+import com.xtremeiptv.data.network.protocol.XtreamClient
 import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,7 +14,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SeriesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val contentRepository: ContentRepository
+    private val contentRepository: ContentRepository,
+    private val xtreamClient: XtreamClient
 ) : ViewModel() {
     
     private val _series = MutableStateFlow<List<Series>>(emptyList())
@@ -42,12 +44,22 @@ class SeriesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val result = contentRepository.loadSeries(profile, useCache = !forceRefresh)
-                _series.value = result
-                
-                if (result.isEmpty() && !forceRefresh) {
-                    loadSeries(forceRefresh = true)
+                val result = when (profile.protocolType) {
+                    "xtream" -> {
+                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
+                        val seriesList = xtreamClient.getSeriesList(creds)
+                        // Load seasons for each series
+                        seriesList.map { seriesItem ->
+                            val seasons = xtreamClient.getSeriesInfo(creds, seriesItem.id)
+                            seriesItem.copy(seasons = seasons)
+                        }
+                    }
+                    else -> {
+                        contentRepository.loadSeries(profile, useCache = !forceRefresh)
+                    }
                 }
+                
+                _series.value = result
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
