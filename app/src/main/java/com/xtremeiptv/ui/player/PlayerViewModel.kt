@@ -1,15 +1,18 @@
 package com.xtremeiptv.ui.player
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.repository.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
     
@@ -26,7 +29,7 @@ class PlayerViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
     fun initializePlayer() {
-        playerRepository.initializePlayer()
+        playerRepository.initializePlayer(context)
     }
     
     fun loadStream(url: String, resumePosition: Long = 0L) {
@@ -35,13 +38,11 @@ class PlayerViewModel @Inject constructor(
             _error.value = null
             playerRepository.loadStream(url, resumePosition)
             
-            // Listen for errors
             playerRepository.error.collect { err ->
                 _error.value = err
                 _isLoading.value = false
             }
             
-            // Loading completes when playback starts
             playerRepository.isPlaying.collect { playing ->
                 if (playing) _isLoading.value = false
             }
