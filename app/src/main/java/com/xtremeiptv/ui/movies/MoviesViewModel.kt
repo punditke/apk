@@ -3,7 +3,7 @@ package com.xtremeiptv.ui.movies
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xtremeiptv.data.network.model.VodItem
-import com.xtremeiptv.data.network.protocol.*
+import com.xtremeiptv.data.repository.ContentRepository
 import com.xtremeiptv.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -13,10 +13,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MoviesViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val xtreamClient: XtreamClient,
-    private val stalkerClient: StalkerClient,
-    private val macClient: MacClient,
-    private val m3uLoader: M3uLoader
+    private val contentRepository: ContentRepository
 ) : ViewModel() {
     
     private val _movies = MutableStateFlow<List<VodItem>>(emptyList())
@@ -28,11 +25,13 @@ class MoviesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
     
+    private var currentProfileId: String? = null
+    
     init {
         loadMovies()
     }
     
-    fun loadMovies() {
+    fun loadMovies(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -45,38 +44,18 @@ class MoviesViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val result = when (profile.protocolType) {
-                    "xtream" -> {
-                        val creds = XtreamClient.Credentials(profile.serverUrl, profile.username ?: "", profile.password ?: "")
-                        xtreamClient.getVodMovies(creds)
-                    }
-                    "stalker" -> {
-                        val creds = StalkerClient.StalkerCredentials(
-                            profile.serverUrl, profile.username ?: "", profile.password ?: "", profile.macAddress ?: ""
-                        )
-                        stalkerClient.getVodMovies(creds)
-                    }
-                    "mac" -> {
-                        val creds = MacClient.MacCredentials(profile.serverUrl, profile.macAddress ?: "")
-                        macClient.getVodMovies(creds)
-                    }
-                    "m3u" -> {
-                        val m3uResult = if (profile.serverUrl.startsWith("http")) {
-                            m3uLoader.loadFromUrl(profile.serverUrl)
-                        } else {
-                            m3uLoader.loadFromFile(profile.serverUrl)
-                        }
-                        m3uResult.movies
-                    }
-                    else -> emptyList()
-                }
+                currentProfileId = profile.id
+                val result = contentRepository.loadMovies(profile, useCache = !forceRefresh)
                 
                 _movies.value = result
-                if (result.isEmpty() && _error.value == null) {
+                
+                if (result.isEmpty() && !forceRefresh) {
+                    loadMovies(forceRefresh = true)
+                } else if (result.isEmpty()) {
                     _error.value = "No movies found"
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = e.message ?: "Failed to load movies"
             } finally {
                 _isLoading.value = false
             }
@@ -84,6 +63,10 @@ class MoviesViewModel @Inject constructor(
     }
     
     fun refresh() {
-        loadMovies()
+        loadMovies(forceRefresh = true)
+    }
+    
+    fun clearError() {
+        _error.value = null
     }
 }
